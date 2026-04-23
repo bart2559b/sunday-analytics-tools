@@ -1,0 +1,1290 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QA Analytics Dashboard</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- PapaParse -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <!-- html2canvas สำหรับ Export รูปภาพ -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Prompt:wght@300;400;500;600;700&display=swap');
+        body { 
+            font-family: 'Prompt', 'Inter', sans-serif; 
+            background-color: #0f172a; /* slate-900 */
+            color: #cbd5e1; /* slate-300 */
+        }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #1e293b; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #64748b; }
+        
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(51, 65, 85, 0.5);
+        }
+
+        .upload-area { transition: all 0.3s ease; }
+        .upload-area.dragover {
+            background-color: rgba(59, 130, 246, 0.1);
+            border-color: #3b82f6;
+        }
+
+        .nav-btn.active {
+            background-color: rgba(67, 56, 202, 0.4); /* indigo-900/40 */
+            border-color: rgba(99, 102, 241, 0.5); /* indigo-500/50 */
+            color: #ffffff;
+        }
+        .nav-btn {
+            border: 1px solid transparent;
+        }
+    </style>
+</head>
+<body class="flex h-screen overflow-hidden">
+
+    <!-- Sidebar -->
+    <aside class="w-64 bg-slate-800 border-r border-slate-700 flex flex-col justify-between hidden md:flex z-10 shadow-xl">
+        <div class="flex flex-col h-full overflow-hidden">
+            <div class="p-6 border-b border-slate-700 flex items-center gap-3 shrink-0">
+                <div class="bg-indigo-500 text-white p-2 rounded-lg shadow-lg shadow-indigo-500/30">
+                    <i class="fa-solid fa-chart-line text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold text-white tracking-wide">QA Analytics</h1>
+                    <p class="text-xs text-indigo-300">Interactive Analysis</p>
+                </div>
+            </div>
+
+            <div class="p-4 flex flex-col h-full overflow-hidden">
+                <!-- Navigation Menus -->
+                <div class="space-y-2 mb-6 shrink-0">
+                    <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Main Menu</div>
+                    <button id="navBtnSingle" onclick="switchTab('single')" class="nav-btn active w-full flex items-center gap-3 px-4 py-2.5 text-slate-400 hover:bg-slate-700 hover:text-white rounded-lg transition-all text-sm font-medium">
+                        <i class="fa-solid fa-chart-pie w-5"></i> Single Dashboard
+                    </button>
+                    <button id="navBtnCompare" onclick="switchTab('compare')" class="nav-btn w-full flex items-center gap-3 px-4 py-2.5 text-slate-400 hover:bg-slate-700 hover:text-white rounded-lg transition-all text-sm font-medium">
+                        <i class="fa-solid fa-code-compare w-5"></i> Progress Compare
+                    </button>
+                </div>
+
+                <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 shrink-0">Data Source</div>
+                
+                <label for="csvFileInput" class="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2.5 rounded-lg cursor-pointer transition shadow-lg shadow-indigo-900/20 text-sm font-medium shrink-0">
+                    <i class="fa-solid fa-cloud-arrow-up"></i>
+                    เพิ่มไฟล์ CSV
+                </label>
+                <input type="file" id="csvFileInput" accept=".csv" multiple class="hidden">
+
+                <!-- File List Container -->
+                <div class="mt-4 flex-1 overflow-y-auto custom-scrollbar pr-1">
+                    <div id="fileListContainer" class="space-y-2">
+                        <!-- Uploaded files will be listed here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="p-4 border-t border-slate-700 text-xs text-slate-500 text-center shrink-0">
+            Dashboard Version 6.5 (Fix Image Export)
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col h-full overflow-hidden relative bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-slate-800 via-slate-900 to-black">
+        
+        <!-- Mobile Header -->
+        <header class="md:hidden bg-slate-800 p-4 border-b border-slate-700 flex justify-between items-center shrink-0">
+            <div class="flex items-center gap-2">
+                <i class="fa-solid fa-chart-line text-indigo-500"></i>
+                <h1 class="font-bold text-white">QA Analytics</h1>
+            </div>
+            <div class="flex items-center gap-3">
+                <button onclick="switchTab('compare')" class="text-indigo-400 text-sm"><i class="fa-solid fa-code-compare"></i></button>
+                <label for="csvFileInputMobile" class="text-indigo-400 cursor-pointer"><i class="fa-solid fa-upload"></i></label>
+            </div>
+            <input type="file" id="csvFileInputMobile" accept=".csv" multiple class="hidden">
+        </header>
+
+        <div class="flex-1 overflow-y-auto custom-scrollbar p-6 lg:p-8">
+            
+            <!-- Upload Area (Shows when no data) -->
+            <div id="uploadSection" class="upload-area border-2 border-dashed border-slate-600 rounded-2xl p-12 text-center bg-slate-800/50 flex flex-col items-center justify-center h-[70vh] max-w-3xl mx-auto mt-10">
+                <div class="w-20 h-20 bg-slate-700 rounded-full flex items-center justify-center mb-6 shadow-lg">
+                    <i class="fa-solid fa-file-csv text-4xl text-indigo-400"></i>
+                </div>
+                <h2 class="text-2xl font-bold text-white mb-2">ลากไฟล์ Test Case (CSV) มาวางที่นี่</h2>
+                <p class="text-slate-400 mb-6">กรุณาอัปโหลดอย่างน้อย 1 ไฟล์ (หากต้องการเปรียบเทียบให้อัปโหลด 2 ไฟล์ขึ้นไป)</p>
+                <label for="csvFileInputCenter" class="cursor-pointer bg-slate-700 hover:bg-slate-600 text-white px-6 py-3 rounded-lg font-medium transition flex items-center gap-2">
+                    <i class="fa-solid fa-folder-open"></i> เลือกไฟล์จากเครื่อง
+                </label>
+                <input type="file" id="csvFileInputCenter" accept=".csv" multiple class="hidden">
+            </div>
+
+            <!-- ================= VIEW 1: SINGLE DASHBOARD ================= -->
+            <div id="viewSingle" class="space-y-6 hidden pb-8">
+                <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-2">
+                    <div class="flex items-center gap-3 flex-wrap">
+                        <h2 class="text-xl font-bold text-white flex items-center gap-2"><i class="fa-solid fa-chart-pie text-indigo-400"></i> Single File Analysis</h2>
+                        <span id="singleFileNameDisplay" class="text-sm bg-slate-800 px-3 py-1 rounded-full text-indigo-300 border border-slate-700 hidden md:inline-block">No file selected</span>
+                        <!-- Export Button -->
+                        <button onclick="exportDashboard('viewSingle')" class="bg-slate-700 hover:bg-slate-600 text-white px-3 py-1.5 rounded border border-slate-600 text-xs flex items-center gap-1.5 transition-colors shadow-sm">
+                            <i class="fa-solid fa-camera"></i> Export
+                        </button>
+                    </div>
+                    
+                    <!-- Sub-folder Filter (Single View) -->
+                    <div class="flex items-center gap-2 bg-slate-800/80 p-2 rounded-lg border border-slate-700/50 w-full md:w-auto">
+                        <span class="text-[10px] text-slate-400 uppercase px-1 shrink-0"><i class="fa-solid fa-folder-tree mr-1"></i>Sub-folder</span>
+                        <select id="filterSubfolderSingle" onchange="applySingleFilter()" class="bg-slate-900 border border-slate-600 text-white text-sm rounded focus:ring-indigo-500 focus:border-indigo-500 block w-full md:w-48 p-1.5 max-w-full truncate">
+                            <option value="All">All Sub-folders</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- KPI Section -->
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+                    <div class="glass-panel rounded-xl p-5 relative overflow-hidden group">
+                        <div class="absolute top-0 right-0 p-4 opacity-10"><i class="fa-solid fa-database text-6xl text-white"></i></div>
+                        <p class="text-sm font-medium text-slate-400">Total Test Cases</p>
+                        <h3 class="text-4xl font-bold text-white mt-2 font-inter" id="kpiTotal">0</h3>
+                    </div>
+                    <div class="glass-panel rounded-xl p-5 border-l-4 border-l-emerald-500 relative overflow-hidden group">
+                        <div class="absolute top-0 right-0 p-4 opacity-10"><i class="fa-solid fa-check text-6xl text-emerald-500"></i></div>
+                        <p class="text-sm font-medium text-slate-400">Passed</p>
+                        <div class="flex items-end gap-2 mt-2">
+                            <h3 class="text-4xl font-bold text-emerald-400 font-inter" id="kpiPassed">0</h3>
+                            <span class="text-sm text-emerald-500/70 mb-1" id="kpiPassedPct">(0%)</span>
+                        </div>
+                    </div>
+                    <div class="glass-panel rounded-xl p-5 border-l-4 border-l-rose-500 relative overflow-hidden group">
+                        <div class="absolute top-0 right-0 p-4 opacity-10"><i class="fa-solid fa-xmark text-6xl text-rose-500"></i></div>
+                        <p class="text-sm font-medium text-slate-400">Failed</p>
+                        <div class="flex items-end gap-2 mt-2">
+                            <h3 class="text-4xl font-bold text-rose-400 font-inter" id="kpiFailed">0</h3>
+                            <span class="text-sm text-rose-500/70 mb-1" id="kpiFailedPct">(0%)</span>
+                        </div>
+                    </div>
+                    <div class="glass-panel rounded-xl p-5 border-l-4 border-l-amber-500 relative overflow-hidden group">
+                        <div class="absolute top-0 right-0 p-4 opacity-10"><i class="fa-solid fa-hourglass-half text-6xl text-amber-500"></i></div>
+                        <p class="text-sm font-medium text-slate-400">New / Pending</p>
+                        <div class="flex items-end gap-2 mt-2">
+                            <h3 class="text-4xl font-bold text-amber-400 font-inter leading-none" id="kpiNew">0</h3>
+                            <div id="kpiNewPct" class="flex flex-col text-[10px] text-amber-500/80 mb-0.5 border-l border-amber-500/30 pl-2 leading-tight">
+                                <!-- Breakdown injected here -->
+                                <span>(0%)</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts Section -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="glass-panel rounded-xl p-5">
+                        <h3 class="font-semibold text-white mb-4 flex items-center gap-2"><i class="fa-solid fa-chart-pie text-indigo-400"></i> Execution Status</h3>
+                        <div class="relative h-64"><canvas id="statusChart"></canvas></div>
+                    </div>
+                    <div class="glass-panel rounded-xl p-5">
+                        <h3 class="font-semibold text-white mb-4 flex items-center gap-2"><i class="fa-solid fa-layer-group text-indigo-400"></i> Priority Distribution</h3>
+                        <div class="relative h-64"><canvas id="priorityChart"></canvas></div>
+                    </div>
+                    <div class="glass-panel rounded-xl p-5">
+                        <h3 class="font-semibold text-white mb-4 flex items-center gap-2"><i class="fa-solid fa-chart-bar text-indigo-400"></i> Top Modules</h3>
+                        <div class="relative h-64"><canvas id="moduleChart"></canvas></div>
+                    </div>
+                </div>
+
+                <!-- Execution Status by Priority Filter (Multiple 100% Ratio Bars) -->
+                <div class="mt-6 glass-panel rounded-xl p-5">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-3 border-b border-slate-700/50 pb-4">
+                        <h3 class="font-semibold text-white flex items-center gap-2"><i class="fa-solid fa-bars-staggered text-indigo-400"></i> Execution Status by Priority Ratio</h3>
+                        
+                        <!-- Custom Multi-select Dropdown -->
+                        <div class="flex items-center gap-2 bg-slate-800/80 p-1.5 rounded-lg border border-slate-700/50 relative" id="priorityFilterWrapper">
+                            <span class="text-[10px] text-slate-400 uppercase px-1 shrink-0"><i class="fa-solid fa-layer-group mr-1"></i>Priority</span>
+                            
+                            <button id="multiSelectBtn" onclick="document.getElementById('multiSelectMenu').classList.toggle('hidden')" class="bg-slate-900 border border-slate-600 text-white text-sm rounded flex justify-between items-center w-44 p-1.5 hover:bg-slate-800 transition-colors">
+                                <span id="multiSelectLabel" class="truncate text-xs">All Priorities</span>
+                                <i class="fa-solid fa-chevron-down text-slate-400 text-[10px] ml-2"></i>
+                            </button>
+
+                            <!-- Dropdown Menu Options -->
+                            <div id="multiSelectMenu" class="absolute top-full right-0 mt-1 w-48 bg-slate-800 border border-slate-600 rounded-lg shadow-xl hidden z-50">
+                                <div class="p-2 space-y-1">
+                                    <label class="flex items-center gap-2 text-xs text-slate-300 hover:bg-slate-700 p-1.5 rounded cursor-pointer transition-colors">
+                                        <input type="checkbox" value="All" id="prio-all" class="accent-indigo-500 w-3.5 h-3.5 cursor-pointer" checked onchange="toggleAllPriorities(this)"> 
+                                        <span class="font-medium text-white">Select All</span>
+                                    </label>
+                                    <hr class="border-slate-700 my-1">
+                                    <label class="flex items-center gap-2 text-xs text-slate-300 hover:bg-slate-700 p-1.5 rounded cursor-pointer transition-colors">
+                                        <input type="checkbox" value="Critical" class="prio-checkbox accent-indigo-500 w-3.5 h-3.5 cursor-pointer" checked onchange="updatePriorityFilter()"> Critical
+                                    </label>
+                                    <label class="flex items-center gap-2 text-xs text-slate-300 hover:bg-slate-700 p-1.5 rounded cursor-pointer transition-colors">
+                                        <input type="checkbox" value="Urgent" class="prio-checkbox accent-indigo-500 w-3.5 h-3.5 cursor-pointer" checked onchange="updatePriorityFilter()"> Urgent
+                                    </label>
+                                    <label class="flex items-center gap-2 text-xs text-slate-300 hover:bg-slate-700 p-1.5 rounded cursor-pointer transition-colors">
+                                        <input type="checkbox" value="High" class="prio-checkbox accent-indigo-500 w-3.5 h-3.5 cursor-pointer" checked onchange="updatePriorityFilter()"> High
+                                    </label>
+                                    <label class="flex items-center gap-2 text-xs text-slate-300 hover:bg-slate-700 p-1.5 rounded cursor-pointer transition-colors">
+                                        <input type="checkbox" value="Medium" class="prio-checkbox accent-indigo-500 w-3.5 h-3.5 cursor-pointer" checked onchange="updatePriorityFilter()"> Medium
+                                    </label>
+                                    <label class="flex items-center gap-2 text-xs text-slate-300 hover:bg-slate-700 p-1.5 rounded cursor-pointer transition-colors">
+                                        <input type="checkbox" value="Low" class="prio-checkbox accent-indigo-500 w-3.5 h-3.5 cursor-pointer" checked onchange="updatePriorityFilter()"> Low
+                                    </label>
+                                    <label class="flex items-center gap-2 text-xs text-slate-300 hover:bg-slate-700 p-1.5 rounded cursor-pointer transition-colors">
+                                        <input type="checkbox" value="Not Specified" class="prio-checkbox accent-indigo-500 w-3.5 h-3.5 cursor-pointer" checked onchange="updatePriorityFilter()"> Not Specified
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <!-- Container for multiple priority bars -->
+                        <div id="priorityBarsContainer" class="space-y-4 max-h-80 overflow-y-auto custom-scrollbar pr-2 pb-2">
+                            <!-- Bars will be dynamically injected here -->
+                        </div>
+                        <!-- Legend / Percentages -->
+                        <div id="priorityStatusLegend" class="flex flex-wrap justify-center sm:justify-start gap-x-6 gap-y-3 mt-5 pt-4 border-t border-slate-700/50 text-xs">
+                            <!-- Legend items will be generated here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Table Section -->
+                <div class="glass-panel rounded-xl overflow-hidden mt-6">
+                    <div class="p-4 border-b border-slate-700/50 flex justify-between items-center bg-slate-800/50">
+                        <h3 class="font-semibold text-white flex items-center gap-2"><i class="fa-solid fa-table-cells text-indigo-400"></i> Test Case Matrix</h3>
+                        <span class="text-xs bg-slate-800 text-slate-400 py-1.5 px-3 rounded-full border border-slate-700" id="tableRecordCount">0 Modules</span>
+                    </div>
+                    <div class="overflow-x-auto custom-scrollbar max-h-96 relative">
+                        <table class="w-full text-sm text-left whitespace-nowrap">
+                            <thead class="text-xs text-slate-400 uppercase bg-slate-800 sticky top-0 z-10 shadow-sm" id="matrixTableHeader">
+                                <!-- Headers generated dynamically -->
+                            </thead>
+                            <tbody id="dataTableBody" class="divide-y divide-slate-700/50"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ================= VIEW 2: PROGRESS COMPARE ================= -->
+            <div id="viewCompare" class="space-y-6 hidden pb-8">
+                <div class="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-4 mb-2">
+                    <div class="flex items-center gap-3 shrink-0 flex-wrap">
+                        <h2 class="text-xl font-bold text-white flex items-center gap-2"><i class="fa-solid fa-rocket text-indigo-400"></i> Progress Tracking</h2>
+                        <!-- Export Button -->
+                        <button onclick="exportDashboard('viewCompare')" class="bg-slate-700 hover:bg-slate-600 text-white px-3 py-1.5 rounded border border-slate-600 text-xs flex items-center gap-1.5 transition-colors shadow-sm">
+                            <i class="fa-solid fa-camera"></i> Export
+                        </button>
+                    </div>
+                    
+                    <div class="flex flex-wrap items-center gap-3 w-full xl:w-auto">
+                        <!-- Sub-folder Filter (Compare View) -->
+                        <div class="flex items-center gap-2 bg-slate-800/80 p-2 rounded-lg border border-slate-700/50 flex-1 md:flex-none">
+                            <span class="text-[10px] text-slate-400 uppercase px-1 shrink-0"><i class="fa-solid fa-folder-tree mr-1"></i>Sub-folder</span>
+                            <select id="filterSubfolderCompare" onchange="runComparison()" class="bg-slate-900 border border-slate-600 text-white text-sm rounded focus:ring-indigo-500 focus:border-indigo-500 block w-full md:w-32 p-1.5 max-w-full truncate">
+                                <option value="All">All</option>
+                            </select>
+                        </div>
+
+                        <!-- File Selectors -->
+                        <div class="flex items-center gap-2 bg-slate-800/80 p-2 rounded-lg border border-slate-700/50 flex-1 md:flex-none">
+                            <div class="flex flex-col w-1/2 md:w-auto">
+                                <span class="text-[10px] text-slate-400 uppercase px-1">Baseline (Old)</span>
+                                <select id="compareFileA" onchange="onCompareFileChange()" class="bg-slate-900 border border-slate-600 text-white text-sm rounded focus:ring-indigo-500 focus:border-indigo-500 block w-full md:w-40 p-1.5 max-w-full truncate">
+                                    <option value="">- เลือกไฟล์ -</option>
+                                </select>
+                            </div>
+                            <div class="text-slate-500 text-xs shrink-0"><i class="fa-solid fa-arrow-right"></i></div>
+                            <div class="flex flex-col w-1/2 md:w-auto">
+                                <span class="text-[10px] text-indigo-300 uppercase px-1">Target (New)</span>
+                                <select id="compareFileB" onchange="onCompareFileChange()" class="bg-slate-900 border border-indigo-500/50 text-white text-sm rounded focus:ring-indigo-500 focus:border-indigo-500 block w-full md:w-40 p-1.5 max-w-full truncate">
+                                    <option value="">- เลือกไฟล์ -</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Missing Files Warning -->
+                <div id="compareWarning" class="glass-panel rounded-xl p-10 text-center flex flex-col items-center justify-center h-64">
+                    <i class="fa-solid fa-file-circle-plus text-5xl text-slate-500 mb-4"></i>
+                    <h3 class="text-lg font-medium text-slate-300 mb-2">รอการเปรียบเทียบ</h3>
+                    <p class="text-slate-500 text-sm">กรุณาเลือกไฟล์ Baseline และ Target ด้านบนเพื่อดูความคืบหน้า<br/>(จำเป็นต้องอัปโหลดอย่างน้อย 2 ไฟล์)</p>
+                </div>
+
+                <!-- Comparison Content (Hidden initially) -->
+                <div id="compareContent" class="space-y-6 hidden">
+                    <!-- Delta KPIs -->
+                    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+                        <div class="glass-panel rounded-xl p-4">
+                            <p class="text-xs text-slate-400 uppercase tracking-wider">Total Test Cases</p>
+                            <div class="flex items-end justify-between mt-2">
+                                <h3 class="text-2xl font-bold text-white font-inter" id="cmpTotal">0</h3>
+                                <span class="text-sm font-medium px-2 py-0.5 rounded" id="cmpTotalDiff">-</span>
+                            </div>
+                        </div>
+                        <div class="glass-panel rounded-xl p-4 border-b-2 border-b-emerald-500">
+                            <p class="text-xs text-slate-400 uppercase tracking-wider">Passed</p>
+                            <div class="flex items-end justify-between mt-2">
+                                <h3 class="text-2xl font-bold text-emerald-400 font-inter" id="cmpPassed">0</h3>
+                                <span class="text-sm font-medium px-2 py-0.5 rounded" id="cmpPassedDiff">-</span>
+                            </div>
+                        </div>
+                        <div class="glass-panel rounded-xl p-4 border-b-2 border-b-rose-500">
+                            <p class="text-xs text-slate-400 uppercase tracking-wider">Failed</p>
+                            <div class="flex items-end justify-between mt-2">
+                                <h3 class="text-2xl font-bold text-rose-400 font-inter" id="cmpFailed">0</h3>
+                                <span class="text-sm font-medium px-2 py-0.5 rounded" id="cmpFailedDiff">-</span>
+                            </div>
+                        </div>
+                        <div class="glass-panel rounded-xl p-4 border-b-2 border-b-amber-500">
+                            <p class="text-xs text-slate-400 uppercase tracking-wider">New / Pending</p>
+                            <div class="flex items-end justify-between mt-2">
+                                <div class="flex items-end gap-2">
+                                    <h3 class="text-2xl font-bold text-amber-400 font-inter leading-none" id="cmpNew">0</h3>
+                                    <div id="cmpNewBreakdown" class="flex flex-col text-[9px] text-amber-500/80 border-l border-amber-500/30 pl-1.5 leading-tight">
+                                        <!-- Breakdown injected here -->
+                                        <span>(0%)</span>
+                                    </div>
+                                </div>
+                                <span class="text-sm font-medium px-2 py-0.5 rounded" id="cmpNewDiff">-</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Compare Charts Row 1 -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="glass-panel rounded-xl p-5">
+                            <h3 class="font-semibold text-white mb-4 flex items-center gap-2">
+                                <i class="fa-solid fa-chart-column text-indigo-400"></i> Status Comparison
+                            </h3>
+                            <div class="relative h-72"><canvas id="compareBarChart"></canvas></div>
+                        </div>
+                        <div class="glass-panel rounded-xl p-5">
+                            <h3 class="font-semibold text-white mb-4 flex items-center gap-2">
+                                <i class="fa-solid fa-bug text-indigo-400"></i> Failed Cases by Severity 
+                                <span class="text-xs font-normal text-slate-400 ml-2">(Lower is better)</span>
+                            </h3>
+                            <div class="relative h-72"><canvas id="compareSeverityChart"></canvas></div>
+                        </div>
+                    </div>
+
+                    <!-- Compare Charts Row 2 -->
+                    <div class="glass-panel rounded-xl p-5">
+                        <h3 class="font-semibold text-white mb-4 flex items-center gap-2">
+                            <i class="fa-solid fa-bars-progress text-indigo-400"></i> Passed Cases Progress by Top Modules
+                            <span class="text-xs font-normal text-slate-400 ml-2">(Higher is better)</span>
+                        </h3>
+                        <div class="relative h-80"><canvas id="compareModuleChart"></canvas></div>
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Custom Floating Tooltip for Ratio Bars -->
+    <div id="customBarTooltip" class="fixed hidden z-[9999] pointer-events-none bg-slate-800 text-white text-xs rounded-lg py-2 px-3 shadow-[0_10px_40px_-15px_rgba(0,0,0,0.8)] border border-slate-600 transform -translate-x-1/2 -translate-y-[calc(100%+14px)] transition-opacity duration-150 opacity-0">
+        <div id="barTooltipContent" class="flex items-center gap-2"></div>
+        <div class="absolute top-full left-1/2 -translate-x-1/2 border-[6px] border-transparent border-t-slate-600"></div>
+        <div class="absolute top-full left-1/2 -translate-x-1/2 border-[5px] border-transparent border-t-slate-800 -mt-[2px]"></div>
+    </div>
+
+    <script>
+        // Set global Chart.js defaults
+        Chart.defaults.color = '#94a3b8';
+        Chart.defaults.borderColor = 'rgba(51, 65, 85, 0.5)';
+
+        // Global State
+        let fileDataMap = {}; 
+        let currentActiveFile = null; 
+        let currentSingleData = []; // เก็บข้อมูลสำหรับการกรองภายในหน้า Single Dashboard
+        let currentTab = 'single'; // 'single' | 'compare'
+        
+        // Chart Instances
+        let statusChart, priorityChart, moduleChart;
+        let compareBarChart, compareSeverityChart, compareModuleChart;
+
+        const colors = {
+            status: {
+                'Passed': '#10b981', 'Failed': '#f43f5e', 'New': '#3b82f6', 
+                'Pending': '#f59e0b', 'Canceled': '#64748b', 'In Progress': '#8b5cf6',
+                'Deferred': '#a855f7', // สีม่วง
+                'N/A': '#eab308',      // สีเหลือง
+                'Default': '#94a3b8'
+            },
+            severity: {
+                'High': '#ef4444', 'Medium': '#f59e0b', 'Low': '#10b981', 'Default': '#94a3b8'
+            },
+            priority: {
+                'Critical': '#7f1d1d', // แดงเข้ม
+                'Urgent': '#b91c1c',   // แดง
+                'High': '#ef4444',     // แดงสว่าง
+                'Medium': '#f59e0b',   // ส้ม
+                'Low': '#10b981',      // เขียว
+                'Default': '#94a3b8'   // เทา (กรณีไม่มีค่า)
+            }
+        };
+
+        // Tooltip Functions for Ratio Bars
+        function showBarTooltip(e, status, count, pct, color, prefix = "") {
+            const tooltip = document.getElementById('customBarTooltip');
+            const content = document.getElementById('barTooltipContent');
+            content.innerHTML = `
+                <span class="w-3 h-3 rounded-full shadow-sm shrink-0 border border-white/20" style="background-color: ${color}"></span>
+                <span class="font-medium text-slate-300 whitespace-nowrap">${prefix}${status}:</span> 
+                <span class="font-bold text-white whitespace-nowrap">${count} รายการ</span> 
+                <span class="text-slate-400 whitespace-nowrap font-mono">(${pct}%)</span>
+            `;
+            tooltip.classList.remove('hidden');
+            requestAnimationFrame(() => {
+                tooltip.classList.remove('opacity-0');
+                tooltip.classList.add('opacity-100');
+            });
+            moveBarTooltip(e);
+        }
+
+        function hideBarTooltip() {
+            const tooltip = document.getElementById('customBarTooltip');
+            tooltip.classList.remove('opacity-100');
+            tooltip.classList.add('opacity-0');
+            setTimeout(() => {
+                if(tooltip.classList.contains('opacity-0')) {
+                    tooltip.classList.add('hidden');
+                }
+            }, 150); 
+        }
+
+        function moveBarTooltip(e) {
+            const tooltip = document.getElementById('customBarTooltip');
+            tooltip.style.left = e.clientX + 'px';
+            tooltip.style.top = e.clientY + 'px';
+        }
+
+        // ================= EXPORT LOGIC =================
+        function exportDashboard(viewId) {
+            const element = document.getElementById(viewId);
+            if (!element) return;
+
+            html2canvas(element, {
+                backgroundColor: '#0f172a', // Use dark slate background to match theme
+                scale: 2, // High resolution output
+                logging: false,
+                useCORS: true,
+                onclone: (clonedDoc) => {
+                    // ป้องกัน html2canvas ตัดคอนเทนต์ยาวๆ ในพื้นที่ scroll
+                    const scrollContainers = clonedDoc.querySelectorAll('.overflow-y-auto, .max-h-80, .max-h-96');
+                    scrollContainers.forEach(container => {
+                        container.style.maxHeight = 'none';
+                        container.style.overflow = 'visible';
+                    });
+                },
+                ignoreElements: (node) => {
+                    // Ignore floating tooltip so it doesn't appear in the image
+                    return node.id === 'customBarTooltip';
+                }
+            }).then(canvas => {
+                const link = document.createElement('a');
+                const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                const prefix = viewId === 'viewSingle' ? 'Single_Dashboard' : 'Compare_Dashboard';
+                link.download = `QA_${prefix}_${timestamp}.png`;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            }).catch(err => {
+                console.error('Error exporting dashboard:', err);
+                alert('เกิดข้อผิดพลาดในการ Export รูปภาพ');
+            });
+        }
+
+        // File Input Setup
+        const fileInputs = [document.getElementById('csvFileInput'), document.getElementById('csvFileInputMobile'), document.getElementById('csvFileInputCenter')];
+        const uploadSection = document.getElementById('uploadSection');
+
+        fileInputs.forEach(input => { if(input) input.addEventListener('change', handleFileUpload); });
+        
+        uploadSection.addEventListener('dragover', (e) => { e.preventDefault(); uploadSection.classList.add('dragover'); });
+        uploadSection.addEventListener('dragleave', () => { uploadSection.classList.remove('dragover'); });
+        uploadSection.addEventListener('drop', (e) => {
+            e.preventDefault(); uploadSection.classList.remove('dragover');
+            if(e.dataTransfer.files.length > 0) Array.from(e.dataTransfer.files).forEach(file => handleFile(file));
+        });
+
+        // Tab Switching Logic
+        function switchTab(tab) {
+            currentTab = tab;
+            
+            // Update UI Buttons
+            document.getElementById('navBtnSingle').className = `nav-btn w-full flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all text-sm font-medium ${tab === 'single' ? 'active' : 'text-slate-400 hover:bg-slate-700 hover:text-white'}`;
+            document.getElementById('navBtnCompare').className = `nav-btn w-full flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all text-sm font-medium ${tab === 'compare' ? 'active' : 'text-slate-400 hover:bg-slate-700 hover:text-white'}`;
+
+            const hasFiles = Object.keys(fileDataMap).length > 0;
+
+            if (!hasFiles) {
+                document.getElementById('uploadSection').style.display = 'flex';
+                document.getElementById('viewSingle').classList.add('hidden');
+                document.getElementById('viewCompare').classList.add('hidden');
+                return;
+            }
+
+            document.getElementById('uploadSection').style.display = 'none';
+
+            if (tab === 'single') {
+                document.getElementById('viewCompare').classList.add('hidden');
+                document.getElementById('viewSingle').classList.remove('hidden');
+                if(currentActiveFile) selectFile(currentActiveFile);
+            } else {
+                document.getElementById('viewSingle').classList.add('hidden');
+                document.getElementById('viewCompare').classList.remove('hidden');
+                updateCompareDropdowns();
+                onCompareFileChange(); // Trigger filter population and chart rendering
+            }
+        }
+
+        function handleFileUpload(event) {
+            const files = event.target.files;
+            if (files.length === 0) return;
+            Array.from(files).forEach(file => handleFile(file));
+        }
+
+        function handleFile(file) {
+            if (fileDataMap[file.name]) {
+                alert(`ไฟล์ "${file.name}" ถูกอัปโหลดไปแล้ว!`);
+                fileInputs.forEach(input => input.value = '');
+                return;
+            }
+
+            Papa.parse(file, {
+                skipEmptyLines: true,
+                complete: function(results) {
+                    const parsedData = extractDataFromCSV(results.data);
+                    if (parsedData.length > 0) {
+                        fileDataMap[file.name] = parsedData;
+                        addFileToUI(file.name);
+                        
+                        const fileCount = Object.keys(fileDataMap).length;
+                        if (fileCount === 1) {
+                            switchTab('single');
+                            selectFile(file.name);
+                        } else if (fileCount >= 2 && currentTab === 'compare') {
+                            updateCompareDropdowns();
+                            
+                            // Auto select newest files for comparison
+                            const fileNames = Object.keys(fileDataMap);
+                            document.getElementById('compareFileA').value = fileNames[fileNames.length - 2];
+                            document.getElementById('compareFileB').value = fileNames[fileNames.length - 1];
+                            onCompareFileChange();
+                        } else {
+                            if(currentTab === 'single') selectFile(file.name);
+                            updateCompareDropdowns();
+                        }
+                    } else {
+                        alert(`ไม่พบ Test Case ID ในไฟล์ "${file.name}"`);
+                    }
+                    fileInputs.forEach(input => input.value = '');
+                }
+            });
+        }
+
+        function extractDataFromCSV(rawData) {
+            let headerIndex = -1;
+            for (let i = 0; i < rawData.length; i++) {
+                if (rawData[i] && rawData[i].length > 0 && String(rawData[i][0]).trim() === 'Test Case ID') {
+                    headerIndex = i; break;
+                }
+            }
+            if (headerIndex === -1) return [];
+            const headers = rawData[headerIndex].map(h => h.trim());
+            return rawData.slice(headerIndex + 1).map(row => {
+                let obj = {};
+                headers.forEach((h, idx) => { if (h) obj[h] = row[idx] ? row[idx].trim() : ''; });
+                return obj;
+            }).filter(row => row['Test Case ID']);
+        }
+
+        function addFileToUI(fileName) {
+            const container = document.getElementById('fileListContainer');
+            const fileItem = document.createElement('div');
+            fileItem.id = `file-item-${fileName.replace(/[^a-zA-Z0-9]/g, '_')}`;
+            fileItem.className = 'file-item p-3 bg-slate-900 rounded-lg border border-slate-700 text-xs flex flex-col gap-1 shadow-sm cursor-pointer transition-all hover:bg-slate-800 opacity-80';
+            fileItem.onclick = () => {
+                if (currentTab === 'compare') switchTab('single');
+                selectFile(fileName);
+            };
+            fileItem.innerHTML = `
+                <div class="flex items-center gap-2 text-slate-300 file-name-container">
+                    <i class="fa-solid fa-file-csv text-emerald-400 shrink-0"></i>
+                    <span class="truncate font-medium flex-1 file-name" title="${fileName}">${fileName}</span>
+                </div>
+            `;
+            container.appendChild(fileItem);
+        }
+
+        // ================= MULTI-SELECT PRIORITY LOGIC =================
+        function toggleAllPriorities(checkbox) {
+            const checkboxes = document.querySelectorAll('.prio-checkbox');
+            checkboxes.forEach(cb => cb.checked = checkbox.checked);
+            updatePriorityFilter();
+        }
+
+        function updatePriorityFilter() {
+            const checkboxes = document.querySelectorAll('.prio-checkbox');
+            const allCheckbox = document.getElementById('prio-all');
+            const selected = Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.value);
+            
+            // Update "Select All" state automatically
+            if (allCheckbox) {
+                allCheckbox.checked = selected.length === checkboxes.length;
+            }
+
+            // Update Label Display
+            const label = document.getElementById('multiSelectLabel');
+            if (selected.length === checkboxes.length) {
+                label.textContent = 'All Priorities';
+            } else if (selected.length === 0) {
+                label.textContent = 'None Selected';
+            } else if (selected.length === 1) {
+                label.textContent = selected[0];
+            } else {
+                label.textContent = `${selected.length} Selected`;
+            }
+
+            renderPriorityStatusChart();
+        }
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(event) {
+            const wrapper = document.getElementById('priorityFilterWrapper');
+            const menu = document.getElementById('multiSelectMenu');
+            if (wrapper && menu && !wrapper.contains(event.target)) {
+                menu.classList.add('hidden');
+            }
+        });
+
+        // ================= SINGLE DASHBOARD LOGIC =================
+        function selectFile(fileName) {
+            if (!fileDataMap[fileName]) return;
+            currentActiveFile = fileName;
+            document.getElementById('singleFileNameDisplay').textContent = fileName;
+
+            document.querySelectorAll('.file-item').forEach(item => {
+                item.classList.remove('bg-indigo-900/40', 'border-indigo-500', 'ring-1', 'opacity-100');
+                item.classList.add('bg-slate-900', 'border-slate-700', 'opacity-80');
+            });
+
+            const activeItem = document.getElementById(`file-item-${fileName.replace(/[^a-zA-Z0-9]/g, '_')}`);
+            if (activeItem) {
+                activeItem.classList.remove('bg-slate-900', 'border-slate-700', 'opacity-80');
+                activeItem.classList.add('bg-indigo-900/40', 'border-indigo-500', 'ring-1', 'opacity-100');
+            }
+
+            // Update sub-folder dropdown choices before applying filter
+            updateSingleFilterDropdown(fileDataMap[fileName]);
+            applySingleFilter();
+        }
+
+        function updateSingleFilterDropdown(data) {
+            const dropdown = document.getElementById('filterSubfolderSingle');
+            const currentVal = dropdown.value;
+            const subfolders = [...new Set(data.map(d => d['Sub-folder'] || 'Unknown'))].sort();
+
+            dropdown.innerHTML = '<option value="All">All Sub-folders</option>';
+            subfolders.forEach(sf => {
+                dropdown.innerHTML += `<option value="${sf}">${sf}</option>`;
+            });
+
+            // Retain previous selection if it still exists in this file
+            if (subfolders.includes(currentVal) || currentVal === 'All') {
+                dropdown.value = currentVal;
+            } else {
+                dropdown.value = 'All';
+            }
+        }
+
+        function applySingleFilter() {
+            if (!currentActiveFile || !fileDataMap[currentActiveFile]) return;
+            const filterVal = document.getElementById('filterSubfolderSingle').value;
+            let data = fileDataMap[currentActiveFile];
+
+            // Apply Sub-folder Filter
+            if (filterVal !== 'All') {
+                data = data.filter(d => (d['Sub-folder'] || 'Unknown') === filterVal);
+            }
+
+            processSingleDashboard(data);
+        }
+
+        function processSingleDashboard(data) {
+            currentSingleData = data; // Update cached data for inner components
+
+            const total = data.length;
+            const passed = data.filter(d => d['Execution Status'] === 'Passed').length;
+            const failed = data.filter(d => d['Execution Status'] === 'Failed').length;
+            
+            // New / Pending Breakdown
+            const countNew = data.filter(d => d['Execution Status'] === 'New').length;
+            const countPending = data.filter(d => d['Execution Status'] === 'Pending').length;
+            const countBlank = data.filter(d => d['Execution Status'] === '' || d['Execution Status'] === 'N/A').length;
+            
+            const newPending = countNew + countPending + countBlank;
+
+            document.getElementById("kpiTotal").innerHTML = total;
+            document.getElementById("kpiPassed").innerHTML = passed;
+            document.getElementById("kpiFailed").innerHTML = failed;
+            document.getElementById("kpiNew").innerHTML = newPending;
+            document.getElementById('kpiPassedPct').textContent = `(${((passed/total||0)*100).toFixed(1)}%)`;
+            document.getElementById('kpiFailedPct').textContent = `(${((failed/total||0)*100).toFixed(1)}%)`;
+            
+            // Generate breakdown HTML for New/Pending
+            let newBreakdown = '';
+            if (total > 0) {
+                if (countNew > 0) newBreakdown += `<span>New: ${((countNew/total)*100).toFixed(1)}%</span>`;
+                if (countPending > 0) newBreakdown += `<span>Pend: ${((countPending/total)*100).toFixed(1)}%</span>`;
+                if (countBlank > 0) newBreakdown += `<span>N/A: ${((countBlank/total)*100).toFixed(1)}%</span>`;
+            }
+            if (newBreakdown === '') newBreakdown = `<span>(0%)</span>`;
+            document.getElementById('kpiNewPct').innerHTML = newBreakdown;
+
+            renderSingleCharts(data);
+            renderPriorityStatusChart(); // Render Multiple HTML ratio bars
+            renderSingleTable(data);
+        }
+
+        function renderSingleCharts(data) {
+            const statusCounts = data.reduce((acc, row) => {
+                let v = row['Execution Status'] || 'New'; acc[v] = (acc[v] || 0) + 1; return acc;
+            }, {});
+            const priorityCounts = data.reduce((acc, row) => {
+                let v = row['Priority'] || 'Not Specified'; acc[v] = (acc[v] || 0) + 1; return acc;
+            }, {});
+            const modCounts = data.reduce((acc, row) => {
+                let v = row['Module / Feature'] || 'Unknown'; acc[v] = (acc[v] || 0) + 1; return acc;
+            }, {});
+
+            if(statusChart) statusChart.destroy();
+            statusChart = new Chart(document.getElementById('statusChart').getContext('2d'), {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(statusCounts),
+                    datasets: [{ data: Object.values(statusCounts), backgroundColor: Object.keys(statusCounts).map(l => colors.status[l] || colors.status['Default']), borderWidth: 0 }]
+                },
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false, 
+                    cutout: '70%', 
+                    plugins: { 
+                        legend: { position: 'right', labels: { usePointStyle: true, boxWidth: 8 } },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const val = context.raw;
+                                    const total = context.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+                                    const pct = total > 0 ? parseFloat(((val / total) * 100).toFixed(1)) + '%' : '0%';
+                                    return ` ${context.label}: ${val} รายการ (${pct})`;
+                                }
+                            }
+                        }
+                    } 
+                }
+            });
+
+            if(priorityChart) priorityChart.destroy();
+            priorityChart = new Chart(document.getElementById('priorityChart').getContext('2d'), {
+                type: 'pie',
+                data: {
+                    labels: Object.keys(priorityCounts),
+                    datasets: [{ data: Object.values(priorityCounts), backgroundColor: Object.keys(priorityCounts).map(l => colors.priority[l] || colors.priority['Default']), borderWidth: 0 }]
+                },
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false, 
+                    plugins: { 
+                        legend: { 
+                            position: 'right', 
+                            labels: { 
+                                usePointStyle: true, 
+                                boxWidth: 8
+                            } 
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const val = context.raw;
+                                    const total = context.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+                                    const pct = total > 0 ? parseFloat(((val / total) * 100).toFixed(1)) + '%' : '0%';
+                                    return ` ${context.label}: ${val} รายการ (${pct})`;
+                                }
+                            }
+                        }
+                    } 
+                }
+            });
+
+            const sortedMods = Object.entries(modCounts).sort((a,b)=>b[1]-a[1]).slice(0,10);
+            if(moduleChart) moduleChart.destroy();
+            moduleChart = new Chart(document.getElementById('moduleChart').getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: sortedMods.map(i => i[0].length > 15 ? i[0].substring(0, 15) + '...' : i[0]),
+                    datasets: [{ label: 'Cases', data: sortedMods.map(i => i[1]), backgroundColor: 'rgba(99, 102, 241, 0.8)', borderRadius: 4 }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { grid: { borderDash: [4,4], color: 'rgba(51, 65, 85, 0.5)' } }, x: { grid: { display: false } } } }
+            });
+        }
+
+        function renderPriorityStatusChart() {
+            const checkboxes = document.querySelectorAll('.prio-checkbox');
+            const selectedPriorities = Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.value);
+            
+            const barContainer = document.getElementById('priorityBarsContainer');
+            const legendContainer = document.getElementById('priorityStatusLegend');
+
+            // Reset containers
+            barContainer.innerHTML = '';
+            legendContainer.innerHTML = '';
+
+            if (selectedPriorities.length === 0) {
+                barContainer.innerHTML = `<div class="w-full py-8 flex items-center justify-center text-xs text-slate-500 bg-slate-800/50 rounded-lg">ไม่มี Priority ที่เลือก</div>`;
+                return;
+            }
+
+            // Gather data specifically for each selected Priority & Overall Total
+            const priorityDataMap = {};
+            const overallStatusCounts = {};
+            let totalSelectedCases = 0;
+            const globalStatusSet = new Set();
+            
+            selectedPriorities.forEach(p => {
+                priorityDataMap[p] = { total: 0, statuses: {} };
+            });
+
+            currentSingleData.forEach(d => {
+                let prio = d['Priority'] || 'Not Specified';
+                if (selectedPriorities.includes(prio)) {
+                    let stat = d['Execution Status'] || 'New';
+                    
+                    // สำหรับราย Priority
+                    priorityDataMap[prio].total++;
+                    priorityDataMap[prio].statuses[stat] = (priorityDataMap[prio].statuses[stat] || 0) + 1;
+                    
+                    // สำหรับหลอดรวมทั้งหมด
+                    totalSelectedCases++;
+                    overallStatusCounts[stat] = (overallStatusCounts[stat] || 0) + 1;
+
+                    globalStatusSet.add(stat);
+                }
+            });
+
+            if (totalSelectedCases === 0) {
+                barContainer.innerHTML = `<div class="w-full py-8 flex items-center justify-center text-xs text-slate-500 bg-slate-800/50 rounded-lg">ไม่มีข้อมูลในไฟล์นี้สำหรับ Priority ที่เลือก</div>`;
+                return;
+            }
+
+            // 1. สร้างแถบ "รวมทั้งหมด" (Overall) ขึ้นมาก่อนที่ด้านบนสุด
+            const sortedOverallStatuses = Object.keys(overallStatusCounts).sort((a,b) => overallStatusCounts[b] - overallStatusCounts[a]);
+            let overallBarHtml = `
+                <div class="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-4 mb-4 pb-4 border-b border-slate-700/60 group">
+                    <div class="w-36 shrink-0 flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 rounded-full shrink-0 shadow-sm bg-indigo-500 border border-indigo-400"></span>
+                        <span class="text-sm text-indigo-300 font-bold whitespace-nowrap group-hover:text-white transition-colors leading-normal pb-0.5" title="รวมที่เลือก">รวมที่เลือก</span>
+                        <span class="text-xs text-indigo-200 font-medium ml-auto shrink-0">(${totalSelectedCases})</span>
+                    </div>
+                    <div class="flex-1 h-7 flex rounded-full bg-slate-800 shadow-inner ring-1 ring-slate-700/50">
+            `;
+
+            sortedOverallStatuses.forEach((status, index) => {
+                const count = overallStatusCounts[status];
+                const pct = (count / totalSelectedCases) * 100;
+                const statColor = colors.status[status] || colors.status['Default'];
+                
+                // Add border radius for first and last items visually
+                const isFirst = index === 0 ? 'rounded-l-full' : '';
+                const isLast = index === sortedOverallStatuses.length - 1 ? 'rounded-r-full border-r-0' : 'border-r border-slate-900/40';
+
+                overallBarHtml += `
+                    <div style="width: ${pct}%; background-color: ${statColor}" 
+                         class="h-full transition-all duration-500 flex items-center justify-center cursor-default overflow-hidden ${isFirst} ${isLast}"
+                         onmouseenter='showBarTooltip(event, "${status}", ${count}, "${pct.toFixed(1)}", "${statColor}", "รวม ")'
+                         onmouseleave='hideBarTooltip()'
+                         onmousemove='moveBarTooltip(event)'>
+                        ${pct >= 5 ? `<span class="text-xs text-white font-bold px-1 whitespace-nowrap pointer-events-none" style="text-shadow: 1px 1px 2px rgba(0,0,0,0.8);">${pct.toFixed(0)}%</span>` : ''}
+                    </div>
+                `;
+            });
+            overallBarHtml += `</div></div>`;
+            barContainer.innerHTML += overallBarHtml;
+
+
+            // 2. สร้างแถบแยกตาม Priority แต่ละอัน
+            // Define fixed order for Priorities to display consistently top-to-bottom
+            const prioOrder = ['Critical', 'Urgent', 'High', 'Medium', 'Low', 'Not Specified'];
+            selectedPriorities.sort((a,b) => {
+                let ia = prioOrder.indexOf(a); let ib = prioOrder.indexOf(b);
+                return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+            });
+
+            selectedPriorities.forEach(prio => {
+                const data = priorityDataMap[prio];
+                if (data.total === 0) return; // Skip priorities that have no data
+                
+                const prioColor = colors.priority[prio] || colors.priority['Default'];
+                
+                let barHtml = `
+                    <div class="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-4 mb-3 last:mb-0 group">
+                        <div class="w-36 shrink-0 flex items-center gap-2">
+                            <span class="w-2.5 h-2.5 rounded-full shrink-0 shadow-sm border border-white/10" style="background-color: ${prioColor}"></span>
+                            <span class="text-sm text-slate-300 font-medium whitespace-nowrap group-hover:text-white transition-colors leading-normal pb-0.5" title="${prio}">${prio}</span>
+                            <span class="text-xs text-slate-500 ml-auto shrink-0">(${data.total})</span>
+                        </div>
+                        <div class="flex-1 h-5 flex rounded-full bg-slate-800 shadow-inner">
+                `;
+
+                // Sort status segments inside the bar (descending by count) to put wider segments first
+                const sortedStatuses = Object.keys(data.statuses).sort((a,b) => data.statuses[b] - data.statuses[a]);
+
+                sortedStatuses.forEach((status, index) => {
+                    const count = data.statuses[status];
+                    const pct = (count / data.total) * 100;
+                    const statColor = colors.status[status] || colors.status['Default'];
+                    
+                    const isFirst = index === 0 ? 'rounded-l-full' : '';
+                    const isLast = index === sortedStatuses.length - 1 ? 'rounded-r-full border-r-0' : 'border-r border-slate-900/40';
+
+                    barHtml += `
+                        <div style="width: ${pct}%; background-color: ${statColor}" 
+                             class="h-full transition-all duration-500 flex items-center justify-center cursor-default overflow-hidden ${isFirst} ${isLast}"
+                             onmouseenter='showBarTooltip(event, "${status}", ${count}, "${pct.toFixed(1)}", "${statColor}", "")'
+                             onmouseleave='hideBarTooltip()'
+                             onmousemove='moveBarTooltip(event)'>
+                            ${pct >= 5 ? `<span class="text-[10px] text-white font-semibold px-1 whitespace-nowrap pointer-events-none" style="text-shadow: 1px 1px 2px rgba(0,0,0,0.8);">${pct.toFixed(0)}%</span>` : ''}
+                        </div>
+                    `;
+                });
+
+                barHtml += `
+                        </div>
+                    </div>
+                `;
+                barContainer.innerHTML += barHtml;
+            });
+
+            // Render Global Legend for Statuses present across all displayed Priorities
+            const sortedGlobalStatuses = Array.from(globalStatusSet).sort();
+            sortedGlobalStatuses.forEach(status => {
+                const color = colors.status[status] || colors.status['Default'];
+                legendContainer.innerHTML += `
+                    <div class="flex items-center gap-1.5">
+                        <span class="w-3 h-3 rounded-full shadow-sm border border-white/10" style="background-color: ${color}"></span>
+                        <span class="text-slate-300">${status}</span>
+                    </div>
+                `;
+            });
+        }
+
+        function renderSingleTable(data) {
+            const tbody = document.getElementById('dataTableBody'); 
+            const thead = document.getElementById('matrixTableHeader');
+            tbody.innerHTML = '';
+            
+            if(data.length === 0) {
+                thead.innerHTML = '';
+                document.getElementById('tableRecordCount').innerText = `0 Modules`;
+                return;
+            }
+
+            const statuses = [...new Set(data.map(d => d['Execution Status'] || 'New'))].sort();
+            const moduleMap = {};
+
+            data.forEach(row => {
+                const mod = row['Module / Feature'] || 'Unknown';
+                const stat = row['Execution Status'] || 'New';
+                if (!moduleMap[mod]) {
+                    moduleMap[mod] = { total: 0 };
+                    statuses.forEach(s => moduleMap[mod][s] = 0);
+                }
+                if(moduleMap[mod][stat] === undefined) moduleMap[mod][stat] = 0;
+                moduleMap[mod][stat]++;
+                moduleMap[mod].total++;
+            });
+
+            let thHTML = `<tr><th class="px-6 py-3 font-semibold min-w-[200px]">Module / Feature</th>`;
+            statuses.forEach(s => { thHTML += `<th class="px-6 py-3 font-semibold text-center">${s}</th>`; });
+            thHTML += `<th class="px-6 py-3 font-semibold text-center text-indigo-300">Total</th></tr>`;
+            thead.innerHTML = thHTML;
+
+            const sortedModules = Object.keys(moduleMap).sort((a, b) => moduleMap[b].total - moduleMap[a].total);
+            document.getElementById('tableRecordCount').innerText = `${sortedModules.length} Modules`;
+
+            sortedModules.forEach(mod => {
+                const stats = moduleMap[mod];
+                let trHTML = `<td class="px-6 py-3 text-slate-300 truncate max-w-[250px]" title="${mod}">${mod}</td>`;
+
+                statuses.forEach(s => {
+                    const count = stats[s] || 0;
+                    let colorClass = 'text-slate-500';
+                    if (count > 0) {
+                        if (s === 'Passed') colorClass = 'text-emerald-400 font-medium';
+                        else if (s === 'Failed') colorClass = 'text-rose-400 font-bold';
+                        else if (s === 'Deferred') colorClass = 'text-purple-400 font-medium';
+                        else if (s === 'N/A') colorClass = 'text-yellow-400 font-medium';
+                        else colorClass = 'text-amber-400 font-medium';
+                    }
+                    trHTML += `<td class="px-6 py-3 text-center ${colorClass}">${count > 0 ? count : '-'}</td>`;
+                });
+
+                trHTML += `<td class="px-6 py-3 text-center font-bold text-indigo-300">${stats.total}</td>`;
+                tbody.innerHTML += `<tr class="hover:bg-slate-700/30">${trHTML}</tr>`;
+            });
+
+            let footerHTML = `<td class="px-6 py-3 font-bold text-slate-200 bg-slate-800 sticky bottom-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.5)]">Grand Total</td>`;
+            let grandTotal = 0;
+            statuses.forEach(s => {
+                const colTotal = sortedModules.reduce((sum, mod) => sum + (moduleMap[mod][s] || 0), 0);
+                footerHTML += `<td class="px-6 py-3 text-center font-bold text-slate-200 bg-slate-800 sticky bottom-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.5)]">${colTotal}</td>`;
+            });
+            grandTotal = sortedModules.reduce((sum, mod) => sum + moduleMap[mod].total, 0);
+            footerHTML += `<td class="px-6 py-3 text-center font-bold text-indigo-300 bg-slate-800 sticky bottom-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.5)]">${grandTotal}</td>`;
+            tbody.innerHTML += `<tr>${footerHTML}</tr>`;
+        }
+
+        // ================= COMPARE LOGIC =================
+        function updateCompareDropdowns() {
+            const selA = document.getElementById('compareFileA');
+            const selB = document.getElementById('compareFileB');
+            const fileNames = Object.keys(fileDataMap);
+            
+            const curA = selA.value; const curB = selB.value;
+            selA.innerHTML = '<option value="">- เลือก Baseline -</option>';
+            selB.innerHTML = '<option value="">- เลือก Target -</option>';
+            
+            fileNames.forEach(f => {
+                selA.innerHTML += `<option value="${f}">${f}</option>`;
+                selB.innerHTML += `<option value="${f}">${f}</option>`;
+            });
+            
+            if(fileNames.includes(curA)) selA.value = curA;
+            if(fileNames.includes(curB)) selB.value = curB;
+        }
+
+        function onCompareFileChange() {
+            const fileA = document.getElementById('compareFileA').value;
+            const fileB = document.getElementById('compareFileB').value;
+
+            // Update sub-folder dropdown choices based on both files
+            if (fileA && fileB) {
+                const dataA = fileDataMap[fileA] || [];
+                const dataB = fileDataMap[fileB] || [];
+                
+                const dropdown = document.getElementById('filterSubfolderCompare');
+                const currentVal = dropdown.value;
+                
+                const setA = dataA.map(d => d['Sub-folder'] || 'Unknown');
+                const setB = dataB.map(d => d['Sub-folder'] || 'Unknown');
+                const subfolders = [...new Set([...setA, ...setB])].sort();
+
+                dropdown.innerHTML = '<option value="All">All</option>';
+                subfolders.forEach(sf => {
+                    dropdown.innerHTML += `<option value="${sf}">${sf}</option>`;
+                });
+
+                if (subfolders.includes(currentVal) || currentVal === 'All') {
+                    dropdown.value = currentVal;
+                } else {
+                    dropdown.value = 'All';
+                }
+            }
+
+            runComparison();
+        }
+
+        function runComparison() {
+            const fileA = document.getElementById('compareFileA').value;
+            const fileB = document.getElementById('compareFileB').value;
+            const warning = document.getElementById('compareWarning');
+            const content = document.getElementById('compareContent');
+            const filterVal = document.getElementById('filterSubfolderCompare').value;
+
+            if (!fileA || !fileB) {
+                warning.classList.remove('hidden'); content.classList.add('hidden'); return;
+            }
+            if (fileA === fileB) {
+                alert("กรุณาเลือกไฟล์ที่ไม่ซ้ำกันเพื่อเปรียบเทียบ"); return;
+            }
+
+            warning.classList.add('hidden'); content.classList.remove('hidden');
+
+            let dataA = fileDataMap[fileA]; 
+            let dataB = fileDataMap[fileB];
+
+            // Apply Sub-folder Filter
+            if (filterVal !== 'All') {
+                dataA = dataA.filter(d => (d['Sub-folder'] || 'Unknown') === filterVal);
+                dataB = dataB.filter(d => (d['Sub-folder'] || 'Unknown') === filterVal);
+            }
+            
+            // 1. Calculate General Status Stats
+            const stA = { t: dataA.length, p: 0, f: 0, n: 0 };
+            const statusCountsA = {};
+            const allStatuses = new Set();
+            
+            dataA.forEach(d => {
+                let s = d['Execution Status'] || 'New';
+                if(s==='Passed') stA.p++; else if(s==='Failed') stA.f++; else if(['New', 'Pending', ''].includes(s)) stA.n++;
+                statusCountsA[s] = (statusCountsA[s] || 0) + 1;
+                allStatuses.add(s);
+            });
+
+            const stB = { t: dataB.length, p: 0, f: 0, n: 0, countNew: 0, countPending: 0, countBlank: 0 };
+            const statusCountsB = {};
+
+            dataB.forEach(d => {
+                let s = d['Execution Status'] || 'New';
+                if(s==='Passed') stB.p++; 
+                else if(s==='Failed') stB.f++; 
+                else if(['New', 'Pending', ''].includes(s)) {
+                    stB.n++;
+                    if (s === 'New') stB.countNew++;
+                    else if (s === 'Pending') stB.countPending++;
+                    else stB.countBlank++;
+                }
+                statusCountsB[s] = (statusCountsB[s] || 0) + 1;
+                allStatuses.add(s);
+            });
+
+            // Update UI Deltas
+            setDeltaUI('cmpTotal', stB.t, stB.t - stA.t);
+            setDeltaUI('cmpPassed', stB.p, stB.p - stA.p, true);
+            setDeltaUI('cmpFailed', stB.f, stB.f - stA.f, false);
+            setDeltaUI('cmpNew', stB.n, stB.n - stA.n, false);
+            
+            // Generate breakdown HTML for New/Pending in Compare view
+            let cmpBreakdown = '';
+            if (stB.t > 0) {
+                if (stB.countNew > 0) cmpBreakdown += `<span>New: ${((stB.countNew/stB.t)*100).toFixed(1)}%</span>`;
+                if (stB.countPending > 0) cmpBreakdown += `<span>Pend: ${((stB.countPending/stB.t)*100).toFixed(1)}%</span>`;
+                if (stB.countBlank > 0) cmpBreakdown += `<span>N/A: ${((stB.countBlank/stB.t)*100).toFixed(1)}%</span>`;
+            }
+            if (cmpBreakdown === '') cmpBreakdown = `<span>(0%)</span>`;
+            
+            const cmpBreakdownEl = document.getElementById('cmpNewBreakdown');
+            if(cmpBreakdownEl) cmpBreakdownEl.innerHTML = cmpBreakdown;
+
+            const chartLabels = Array.from(allStatuses);
+            const chartDataA = chartLabels.map(l => statusCountsA[l] || 0);
+            const chartDataB = chartLabels.map(l => statusCountsB[l] || 0);
+
+            // 2. Extract Data for New Charts (Severity & Module Progress)
+            const failSevA = { 'High': 0, 'Medium': 0, 'Low': 0, 'No Data': 0 };
+            const failSevB = { 'High': 0, 'Medium': 0, 'Low': 0, 'No Data': 0 };
+            
+            const modPassA = {};
+            const modPassB = {};
+            const allModules = new Set();
+
+            dataA.forEach(d => {
+                let s = d['Execution Status'] || 'New';
+                let sev = d['Severity'] || 'No Data';
+                let mod = d['Module / Feature'] || 'Unknown';
+                
+                if (s === 'Failed') { failSevA[sev] = (failSevA[sev] || 0) + 1; }
+                if (s === 'Passed') { modPassA[mod] = (modPassA[mod] || 0) + 1; allModules.add(mod); }
+            });
+
+            dataB.forEach(d => {
+                let s = d['Execution Status'] || 'New';
+                let sev = d['Severity'] || 'No Data';
+                let mod = d['Module / Feature'] || 'Unknown';
+                
+                if (s === 'Failed') { failSevB[sev] = (failSevB[sev] || 0) + 1; }
+                if (s === 'Passed') { modPassB[mod] = (modPassB[mod] || 0) + 1; allModules.add(mod); }
+            });
+
+            renderCompareCharts(chartLabels, chartDataA, chartDataB, failSevA, failSevB, modPassA, modPassB, allModules);
+        }
+
+        function setDeltaUI(id, currentVal, delta, higherIsBetter = true) {
+            document.getElementById(id).innerHTML = currentVal;
+            const diffEl = document.getElementById(id + 'Diff');
+            
+            if (delta === 0) {
+                diffEl.textContent = 'No Change'; diffEl.className = 'text-xs font-medium px-2 py-0.5 rounded bg-slate-700 text-slate-300';
+            } else if (delta > 0) {
+                diffEl.textContent = `+${delta}`;
+                diffEl.className = `text-xs font-bold px-2 py-0.5 rounded ${higherIsBetter ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}`;
+            } else {
+                diffEl.textContent = `${delta}`;
+                diffEl.className = `text-xs font-bold px-2 py-0.5 rounded ${higherIsBetter ? 'bg-rose-500/20 text-rose-400' : 'bg-emerald-500/20 text-emerald-400'}`;
+            }
+        }
+
+        function renderCompareCharts(statusLabels, statusA, statusB, failSevA, failSevB, modPassA, modPassB, allModules) {
+            // 1. General Status Bar Chart
+            if(compareBarChart) compareBarChart.destroy();
+            compareBarChart = new Chart(document.getElementById('compareBarChart').getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: statusLabels,
+                    datasets: [
+                        { label: 'Baseline', data: statusA, backgroundColor: '#64748b', borderRadius: 4 },
+                        { label: 'Target', data: statusB, backgroundColor: statusLabels.map(l => colors.status[l] || colors.status['Default']), borderRadius: 4 }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { usePointStyle: true, boxWidth: 8 } } }, scales: { y: { grid: { borderDash: [4,4], color: 'rgba(51, 65, 85, 0.5)' } }, x: { grid: { display: false } } } }
+            });
+
+            // 2. Failed Cases by Severity
+            if(compareSeverityChart) compareSeverityChart.destroy();
+            const sevLabels = ['High', 'Medium', 'Low', 'No Data'];
+            const sevDataA = sevLabels.map(l => failSevA[l] || 0);
+            const sevDataB = sevLabels.map(l => failSevB[l] || 0);
+
+            compareSeverityChart = new Chart(document.getElementById('compareSeverityChart').getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: sevLabels,
+                    datasets: [
+                        { label: 'Baseline (Failed)', data: sevDataA, backgroundColor: '#64748b', borderRadius: 4 },
+                        { label: 'Target (Failed)', data: sevDataB, backgroundColor: sevLabels.map(l => colors.severity[l] || colors.severity['Default']), borderRadius: 4 }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { usePointStyle: true, boxWidth: 8 } } }, scales: { y: { grid: { borderDash: [4,4], color: 'rgba(51, 65, 85, 0.5)' } }, x: { grid: { display: false } } } }
+            });
+
+            // 3. Passed Cases Progress by Module (Top 10)
+            if(compareModuleChart) compareModuleChart.destroy();
+            
+            // Sort modules by Target passed count to get top performers
+            const sortedModules = Array.from(allModules).sort((a,b) => (modPassB[b]||0) - (modPassB[a]||0)).slice(0, 10);
+            
+            const modLabels = sortedModules.map(m => m.length > 20 ? m.substring(0, 20) + '...' : m);
+            const modDataA = sortedModules.map(m => modPassA[m] || 0);
+            const modDataB = sortedModules.map(m => modPassB[m] || 0);
+
+            compareModuleChart = new Chart(document.getElementById('compareModuleChart').getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: modLabels,
+                    datasets: [
+                        { label: 'Baseline (Passed)', data: modDataA, backgroundColor: '#475569', borderRadius: 4 },
+                        { label: 'Target (Passed)', data: modDataB, backgroundColor: '#10b981', borderRadius: 4 } // emerald-500
+                    ]
+                },
+                options: { 
+                    responsive: true, maintainAspectRatio: false, 
+                    plugins: { legend: { position: 'top', labels: { usePointStyle: true, boxWidth: 8 } } }, 
+                    scales: { y: { grid: { borderDash: [4,4], color: 'rgba(51, 65, 85, 0.5)' } }, x: { grid: { display: false } } } 
+                }
+            });
+        }
+    </script>
+</body>
+</html>
