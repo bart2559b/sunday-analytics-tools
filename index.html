@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>QA Analytics Dashboard</title>
+    <title>QA Analytics Dashboard-Sunday</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Chart.js -->
@@ -93,7 +93,7 @@
         </div>
 
         <div class="p-4 border-t border-slate-700 text-xs text-slate-500 text-center shrink-0">
-            Dashboard Version 6.5 (Fix Image Export)
+            Dashboard Version 6.7 (Expandable Matrix)
         </div>
     </aside>
 
@@ -258,13 +258,20 @@
                     </div>
                 </div>
 
-                <!-- Table Section -->
+                <!-- Table Section (With Click to Expand Scenario) -->
                 <div class="glass-panel rounded-xl overflow-hidden mt-6">
-                    <div class="p-4 border-b border-slate-700/50 flex justify-between items-center bg-slate-800/50">
-                        <h3 class="font-semibold text-white flex items-center gap-2"><i class="fa-solid fa-table-cells text-indigo-400"></i> Test Case Matrix</h3>
+                    <div class="p-4 border-b border-slate-700/50 flex justify-between items-center bg-slate-800/50 flex-wrap gap-3">
+                        <div class="flex items-center gap-4 flex-wrap">
+                            <h3 class="font-semibold text-white flex items-center gap-2">
+                                <i class="fa-solid fa-table-cells text-indigo-400"></i> Test Case Matrix 
+                            </h3>
+                            <span class="text-xs text-slate-400 font-normal italic hidden sm:inline-block">
+                                (คลิกที่ชื่อ Module เพื่อดูรายละเอียด Test Scenario)
+                            </span>
+                        </div>
                         <span class="text-xs bg-slate-800 text-slate-400 py-1.5 px-3 rounded-full border border-slate-700" id="tableRecordCount">0 Modules</span>
                     </div>
-                    <div class="overflow-x-auto custom-scrollbar max-h-96 relative">
+                    <div class="overflow-x-auto custom-scrollbar max-h-96 relative" id="matrixTableWrapper">
                         <table class="w-full text-sm text-left whitespace-nowrap">
                             <thead class="text-xs text-slate-400 uppercase bg-slate-800 sticky top-0 z-10 shadow-sm" id="matrixTableHeader">
                                 <!-- Headers generated dynamically -->
@@ -756,7 +763,7 @@
 
             renderSingleCharts(data);
             renderPriorityStatusChart(); // Render Multiple HTML ratio bars
-            renderSingleTable(data);
+            renderSingleTable(); // Call without args to use currentSingleData
         }
 
         function renderSingleCharts(data) {
@@ -990,7 +997,35 @@
             });
         }
 
-        function renderSingleTable(data) {
+        // ================= EXPANDABLE TABLE LOGIC =================
+        function toggleScenarios(modId) {
+            const rows = document.querySelectorAll(`.scenario-row-${modId}`);
+            const icon = document.getElementById(`icon-${modId}`);
+
+            if (rows.length === 0) return;
+
+            const isHidden = rows[0].classList.contains('hidden');
+
+            rows.forEach(row => {
+                if (isHidden) {
+                    row.classList.remove('hidden');
+                } else {
+                    row.classList.add('hidden');
+                }
+            });
+
+            if (icon) {
+                if (isHidden) {
+                    icon.classList.add('fa-rotate-90');
+                    icon.classList.replace('text-slate-500', 'text-indigo-400');
+                } else {
+                    icon.classList.remove('fa-rotate-90');
+                    icon.classList.replace('text-indigo-400', 'text-slate-500');
+                }
+            }
+        }
+
+        function renderSingleTable(data = currentSingleData) {
             const tbody = document.getElementById('dataTableBody'); 
             const thead = document.getElementById('matrixTableHeader');
             tbody.innerHTML = '';
@@ -1003,30 +1038,60 @@
 
             const statuses = [...new Set(data.map(d => d['Execution Status'] || 'New'))].sort();
             const moduleMap = {};
+            let totalScenarios = 0;
 
             data.forEach(row => {
                 const mod = row['Module / Feature'] || 'Unknown';
+                const scen = row['Test Scenario'] || 'Unknown';
                 const stat = row['Execution Status'] || 'New';
+                
+                // Init Module
                 if (!moduleMap[mod]) {
-                    moduleMap[mod] = { total: 0 };
+                    moduleMap[mod] = { total: 0, scenarios: {} };
                     statuses.forEach(s => moduleMap[mod][s] = 0);
                 }
+                
+                // Init Scenario inside Module
+                if (!moduleMap[mod].scenarios[scen]) {
+                    moduleMap[mod].scenarios[scen] = { total: 0 };
+                    statuses.forEach(s => moduleMap[mod].scenarios[scen][s] = 0);
+                    totalScenarios++;
+                }
+                
+                // Add counts
                 if(moduleMap[mod][stat] === undefined) moduleMap[mod][stat] = 0;
+                if(moduleMap[mod].scenarios[scen][stat] === undefined) moduleMap[mod].scenarios[scen][stat] = 0;
+                
                 moduleMap[mod][stat]++;
                 moduleMap[mod].total++;
+                
+                moduleMap[mod].scenarios[scen][stat]++;
+                moduleMap[mod].scenarios[scen].total++;
             });
 
+            // Headers
             let thHTML = `<tr><th class="px-6 py-3 font-semibold min-w-[200px]">Module / Feature</th>`;
             statuses.forEach(s => { thHTML += `<th class="px-6 py-3 font-semibold text-center">${s}</th>`; });
             thHTML += `<th class="px-6 py-3 font-semibold text-center text-indigo-300">Total</th></tr>`;
             thead.innerHTML = thHTML;
 
             const sortedModules = Object.keys(moduleMap).sort((a, b) => moduleMap[b].total - moduleMap[a].total);
-            document.getElementById('tableRecordCount').innerText = `${sortedModules.length} Modules`;
+            
+            // Record Count UI
+            document.getElementById('tableRecordCount').innerHTML = `${sortedModules.length} Modules <span class="text-slate-600 mx-1.5">|</span> ${totalScenarios} Scenarios`;
 
-            sortedModules.forEach(mod => {
+            let tbodyHtml = '';
+
+            sortedModules.forEach((mod, index) => {
                 const stats = moduleMap[mod];
-                let trHTML = `<td class="px-6 py-3 text-slate-300 truncate max-w-[250px]" title="${mod}">${mod}</td>`;
+                const safeModId = 'mod_' + index; // Create safe ID for expanding
+
+                let trHTML = `<td class="px-6 py-3 text-slate-200 font-medium truncate max-w-[250px]">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-chevron-right text-slate-500 text-[10px] transition-transform duration-200 w-3 text-center shrink-0" id="icon-${safeModId}"></i>
+                        <span title="${mod}">${mod}</span>
+                    </div>
+                </td>`;
 
                 statuses.forEach(s => {
                     const count = stats[s] || 0;
@@ -1042,7 +1107,34 @@
                 });
 
                 trHTML += `<td class="px-6 py-3 text-center font-bold text-indigo-300">${stats.total}</td>`;
-                tbody.innerHTML += `<tr class="hover:bg-slate-700/30">${trHTML}</tr>`;
+                
+                // Module Row (Clickable)
+                tbodyHtml += `<tr class="hover:bg-slate-700/30 cursor-pointer border-b border-slate-800/50 group select-none transition-colors" onclick="toggleScenarios('${safeModId}')">${trHTML}</tr>`;
+
+                // Render Scenarios (Hidden by default)
+                const sortedScenarios = Object.keys(stats.scenarios).sort((a, b) => stats.scenarios[b].total - stats.scenarios[a].total);
+                sortedScenarios.forEach(scen => {
+                    const scenStats = stats.scenarios[scen];
+                    let scenTrHTML = `<td class="px-6 py-2 text-slate-400 truncate max-w-[300px] text-xs pl-10" title="${scen}">
+                        <i class="fa-solid fa-level-up fa-rotate-90 mr-2 text-slate-600"></i>${scen}
+                    </td>`;
+                    
+                    statuses.forEach(s => {
+                        const count = scenStats[s] || 0;
+                        let colorClass = 'text-slate-600';
+                        if (count > 0) {
+                            if (s === 'Passed') colorClass = 'text-emerald-400/80';
+                            else if (s === 'Failed') colorClass = 'text-rose-400/90 font-medium';
+                            else if (s === 'Deferred') colorClass = 'text-purple-400/80';
+                            else if (s === 'N/A') colorClass = 'text-yellow-400/80';
+                            else colorClass = 'text-amber-400/80';
+                        }
+                        scenTrHTML += `<td class="px-6 py-2 text-center text-xs ${colorClass}">${count > 0 ? count : '-'}</td>`;
+                    });
+                    scenTrHTML += `<td class="px-6 py-2 text-center font-medium text-indigo-300/80 text-xs">${scenStats.total}</td>`;
+                    
+                    tbodyHtml += `<tr class="scenario-row-${safeModId} hidden bg-slate-900/40 hover:bg-slate-800/50 border-b border-slate-800/30 transition-colors">${scenTrHTML}</tr>`;
+                });
             });
 
             let footerHTML = `<td class="px-6 py-3 font-bold text-slate-200 bg-slate-800 sticky bottom-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.5)]">Grand Total</td>`;
@@ -1053,7 +1145,9 @@
             });
             grandTotal = sortedModules.reduce((sum, mod) => sum + moduleMap[mod].total, 0);
             footerHTML += `<td class="px-6 py-3 text-center font-bold text-indigo-300 bg-slate-800 sticky bottom-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.5)]">${grandTotal}</td>`;
-            tbody.innerHTML += `<tr>${footerHTML}</tr>`;
+            tbodyHtml += `<tr>${footerHTML}</tr>`;
+
+            tbody.innerHTML = tbodyHtml;
         }
 
         // ================= COMPARE LOGIC =================
@@ -1076,8 +1170,8 @@
         }
 
         function onCompareFileChange() {
-            const fileA = document.getElementById('compareFileA').value;
-            const fileB = document.getElementById('compareFileB').value;
+            const fileA = document.getElementById('compareFileA');
+            const fileB = document.getElementById('compareFileB');
 
             // Update sub-folder dropdown choices based on both files
             if (fileA && fileB) {
