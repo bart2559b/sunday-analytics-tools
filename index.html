@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>QA Analytics Dashboard-Sunday</title>
+    <title>QA Analytics Dashboard</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Chart.js -->
@@ -93,7 +93,7 @@
         </div>
 
         <div class="p-4 border-t border-slate-700 text-xs text-slate-500 text-center shrink-0">
-            Dashboard Version 6.7 (Expandable Matrix)
+            Dashboard Version 6.8 (Tracking Fixes)
         </div>
     </aside>
 
@@ -280,6 +280,48 @@
                         </table>
                     </div>
                 </div>
+
+                <!-- Deep Dive by Execution Status -->
+                <div class="mt-6 glass-panel rounded-xl p-5">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3 border-b border-slate-700/50 pb-4">
+                        <div class="flex items-center gap-3 flex-wrap">
+                            <h3 class="font-semibold text-white flex items-center gap-2"><i class="fa-solid fa-magnifying-glass-chart text-indigo-400"></i> Status Deep Dive Analysis</h3>
+                            <span class="text-xs text-slate-400 font-normal italic hidden sm:inline-block">
+                                (เจาะลึกรายละเอียด Priority แยกตาม Status)
+                            </span>
+                        </div>
+                        <!-- Custom Multi-select Dropdown for Status -->
+                        <div class="flex items-center gap-2 bg-slate-800/80 p-1.5 rounded-lg border border-slate-700/50 relative" id="statusFilterDetailWrapper">
+                            <span class="text-[10px] text-slate-400 uppercase px-1 shrink-0"><i class="fa-solid fa-filter mr-1"></i>Status Filter</span>
+                            
+                            <button id="multiSelectStatusBtn" onclick="document.getElementById('multiSelectStatusMenu').classList.toggle('hidden')" class="bg-slate-900 border border-slate-600 text-white text-sm rounded flex justify-between items-center w-40 p-1.5 hover:bg-slate-800 transition-colors">
+                                <span id="multiSelectStatusLabel" class="truncate text-xs">All Statuses</span>
+                                <i class="fa-solid fa-chevron-down text-slate-400 text-[10px] ml-2"></i>
+                            </button>
+
+                            <!-- Dropdown Menu Options -->
+                            <div id="multiSelectStatusMenu" class="absolute top-full right-0 mt-1 w-48 bg-slate-800 border border-slate-600 rounded-lg shadow-xl hidden z-50 max-h-64 overflow-y-auto custom-scrollbar">
+                                <div class="p-2 space-y-1" id="statusFilterOptionsContainer">
+                                    <!-- Checkboxes injected here dynamically -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Priority Summary Cards -->
+                    <div class="grid grid-cols-3 md:grid-cols-6 gap-3 mb-6" id="statusPriorityCards">
+                        <!-- Cards injected here -->
+                    </div>
+
+                    <!-- Priority Matrix Table -->
+                    <div class="overflow-x-auto custom-scrollbar max-h-96 relative border border-slate-700/50 rounded-lg">
+                        <table class="w-full text-sm text-left whitespace-nowrap">
+                            <thead class="text-xs text-slate-400 uppercase bg-slate-800 sticky top-0 z-10 shadow-sm" id="statusDetailTableHeader">
+                            </thead>
+                            <tbody id="statusDetailTableBody" class="divide-y divide-slate-700/50"></tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
 
             <!-- ================= VIEW 2: PROGRESS COMPARE ================= -->
@@ -332,38 +374,95 @@
                 <div id="compareContent" class="space-y-6 hidden">
                     <!-- Delta KPIs -->
                     <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-                        <div class="glass-panel rounded-xl p-4">
-                            <p class="text-xs text-slate-400 uppercase tracking-wider">Total Test Cases</p>
-                            <div class="flex items-end justify-between mt-2">
-                                <h3 class="text-2xl font-bold text-white font-inter" id="cmpTotal">0</h3>
-                                <span class="text-sm font-medium px-2 py-0.5 rounded" id="cmpTotalDiff">-</span>
+                        <!-- Total -->
+                        <div class="glass-panel rounded-xl p-4 flex flex-col">
+                            <div class="flex justify-between items-start mb-1">
+                                <p class="text-xs text-slate-400 uppercase tracking-wider">Total Test Cases</p>
+                                <span class="text-[10px] font-medium px-1.5 py-0.5 rounded shrink-0" id="cmpTotalDiff">-</span>
                             </div>
-                        </div>
-                        <div class="glass-panel rounded-xl p-4 border-b-2 border-b-emerald-500">
-                            <p class="text-xs text-slate-400 uppercase tracking-wider">Passed</p>
-                            <div class="flex items-end justify-between mt-2">
-                                <h3 class="text-2xl font-bold text-emerald-400 font-inter" id="cmpPassed">0</h3>
-                                <span class="text-sm font-medium px-2 py-0.5 rounded" id="cmpPassedDiff">-</span>
-                            </div>
-                        </div>
-                        <div class="glass-panel rounded-xl p-4 border-b-2 border-b-rose-500">
-                            <p class="text-xs text-slate-400 uppercase tracking-wider">Failed</p>
-                            <div class="flex items-end justify-between mt-2">
-                                <h3 class="text-2xl font-bold text-rose-400 font-inter" id="cmpFailed">0</h3>
-                                <span class="text-sm font-medium px-2 py-0.5 rounded" id="cmpFailedDiff">-</span>
-                            </div>
-                        </div>
-                        <div class="glass-panel rounded-xl p-4 border-b-2 border-b-amber-500">
-                            <p class="text-xs text-slate-400 uppercase tracking-wider">New / Pending</p>
-                            <div class="flex items-end justify-between mt-2">
-                                <div class="flex items-end gap-2">
-                                    <h3 class="text-2xl font-bold text-amber-400 font-inter leading-none" id="cmpNew">0</h3>
-                                    <div id="cmpNewBreakdown" class="flex flex-col text-[9px] text-amber-500/80 border-l border-amber-500/30 pl-1.5 leading-tight">
-                                        <!-- Breakdown injected here -->
-                                        <span>(0%)</span>
-                                    </div>
+                            <h3 class="text-3xl font-bold text-white font-inter leading-none mb-3 mt-1" id="cmpTotal">0</h3>
+                            
+                            <div class="mt-auto bg-slate-800/80 rounded p-2 border border-slate-700/50 text-[10px] space-y-1">
+                                <div class="flex justify-between items-center text-slate-400">
+                                    <span>Base</span>
+                                    <span id="cmpTotalBase" class="font-mono">0</span>
                                 </div>
-                                <span class="text-sm font-medium px-2 py-0.5 rounded" id="cmpNewDiff">-</span>
+                                <div class="flex justify-between items-center text-white font-medium">
+                                    <span>Target</span>
+                                    <span id="cmpTotalTarget" class="font-mono">0</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Passed -->
+                        <div class="glass-panel rounded-xl p-4 border-b-2 border-b-emerald-500 flex flex-col">
+                            <div class="flex justify-between items-start mb-1">
+                                <p class="text-xs text-slate-400 uppercase tracking-wider">Passed</p>
+                                <span class="text-[10px] font-medium px-1.5 py-0.5 rounded shrink-0" id="cmpPassedDiff">-</span>
+                            </div>
+                            <div class="flex items-end gap-1.5 mb-3 mt-1">
+                                <h3 class="text-3xl font-bold text-emerald-400 font-inter leading-none" id="cmpPassed">0</h3>
+                                <span class="text-xs text-emerald-500/70 mb-0.5 font-medium" id="cmpPassedPct">(0%)</span>
+                            </div>
+                            
+                            <div class="mt-auto bg-slate-800/80 rounded p-2 border border-slate-700/50 text-[10px] space-y-1">
+                                <div class="flex justify-between items-center text-slate-400">
+                                    <span>Base</span>
+                                    <span id="cmpPassedBase" class="font-mono">0 (0%)</span>
+                                </div>
+                                <div class="flex justify-between items-center text-emerald-400 font-medium">
+                                    <span>Target</span>
+                                    <span id="cmpPassedTarget" class="font-mono">0 (0%)</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Failed -->
+                        <div class="glass-panel rounded-xl p-4 border-b-2 border-b-rose-500 flex flex-col">
+                            <div class="flex justify-between items-start mb-1">
+                                <p class="text-xs text-slate-400 uppercase tracking-wider">Failed</p>
+                                <span class="text-[10px] font-medium px-1.5 py-0.5 rounded shrink-0" id="cmpFailedDiff">-</span>
+                            </div>
+                            <div class="flex items-end gap-1.5 mb-3 mt-1">
+                                <h3 class="text-3xl font-bold text-rose-400 font-inter leading-none" id="cmpFailed">0</h3>
+                                <span class="text-xs text-rose-500/70 mb-0.5 font-medium" id="cmpFailedPct">(0%)</span>
+                            </div>
+                            
+                            <div class="mt-auto bg-slate-800/80 rounded p-2 border border-slate-700/50 text-[10px] space-y-1">
+                                <div class="flex justify-between items-center text-slate-400">
+                                    <span>Base</span>
+                                    <span id="cmpFailedBase" class="font-mono">0 (0%)</span>
+                                </div>
+                                <div class="flex justify-between items-center text-rose-400 font-medium">
+                                    <span>Target</span>
+                                    <span id="cmpFailedTarget" class="font-mono">0 (0%)</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- New / Pending -->
+                        <div class="glass-panel rounded-xl p-4 border-b-2 border-b-amber-500 flex flex-col">
+                            <div class="flex justify-between items-start mb-1">
+                                <p class="text-xs text-slate-400 uppercase tracking-wider">New / Pend</p>
+                                <span class="text-[10px] font-medium px-1.5 py-0.5 rounded shrink-0" id="cmpNewDiff">-</span>
+                            </div>
+                            <div class="flex items-end gap-1.5 mb-3 mt-1">
+                                <h3 class="text-3xl font-bold text-amber-400 font-inter leading-none" id="cmpNew">0</h3>
+                                <div id="cmpNewBreakdown" class="flex flex-col text-[9px] text-amber-500/80 border-l border-amber-500/30 pl-1.5 leading-tight">
+                                    <!-- Breakdown injected here -->
+                                    <span>(0%)</span>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-auto bg-slate-800/80 rounded p-2 border border-slate-700/50 text-[10px] space-y-1">
+                                <div class="flex justify-between items-center text-slate-400">
+                                    <span>Base</span>
+                                    <span id="cmpNewBase" class="font-mono">0 (0%)</span>
+                                </div>
+                                <div class="flex justify-between items-center text-amber-400 font-medium">
+                                    <span>Target</span>
+                                    <span id="cmpNewTarget" class="font-mono">0 (0%)</span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -378,10 +477,10 @@
                         </div>
                         <div class="glass-panel rounded-xl p-5">
                             <h3 class="font-semibold text-white mb-4 flex items-center gap-2">
-                                <i class="fa-solid fa-bug text-indigo-400"></i> Failed Cases by Severity 
+                                <i class="fa-solid fa-bug text-indigo-400"></i> Failed Cases by Priority 
                                 <span class="text-xs font-normal text-slate-400 ml-2">(Lower is better)</span>
                             </h3>
-                            <div class="relative h-72"><canvas id="compareSeverityChart"></canvas></div>
+                            <div class="relative h-72"><canvas id="comparePriorityChart"></canvas></div>
                         </div>
                     </div>
 
@@ -420,7 +519,7 @@
         
         // Chart Instances
         let statusChart, priorityChart, moduleChart;
-        let compareBarChart, compareSeverityChart, compareModuleChart;
+        let compareBarChart, comparePriorityChart, compareModuleChart;
 
         const colors = {
             status: {
@@ -440,6 +539,40 @@
                 'Medium': '#f59e0b',   // ส้ม
                 'Low': '#10b981',      // เขียว
                 'Default': '#94a3b8'   // เทา (กรณีไม่มีค่า)
+            }
+        };
+
+        // Custom Plugin for drawing Delta (+/-) on Compare Charts
+        const deltaLabelsPlugin = {
+            id: 'deltaLabels',
+            afterDatasetsDraw(chart) {
+                const { ctx, data } = chart;
+                if (data.datasets.length < 2) return;
+                
+                ctx.save();
+                ctx.font = 'bold 11px Inter, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'bottom';
+
+                const metaBase = chart.getDatasetMeta(0);
+                const metaTarget = chart.getDatasetMeta(1);
+
+                for (let i = 0; i < data.labels.length; i++) {
+                    const valBase = data.datasets[0].data[i] || 0;
+                    const valTarget = data.datasets[1].data[i] || 0;
+                    const diff = valTarget - valBase;
+                    
+                    if (metaTarget.data[i] && !metaTarget.hidden) {
+                        const bar = metaTarget.data[i];
+                        let text = diff > 0 ? `+${diff}` : (diff < 0 ? `${diff}` : '');
+                        
+                        if (text) {
+                            ctx.fillStyle = '#f8fafc'; // slate-50 (White text for contrast)
+                            ctx.fillText(text, bar.x, bar.y - 4); // Draw slightly above the bar
+                        }
+                    }
+                }
+                ctx.restore();
             }
         };
 
@@ -675,6 +808,12 @@
             if (wrapper && menu && !wrapper.contains(event.target)) {
                 menu.classList.add('hidden');
             }
+
+            const statusWrapper = document.getElementById('statusFilterDetailWrapper');
+            const statusMenu = document.getElementById('multiSelectStatusMenu');
+            if (statusWrapper && statusMenu && !statusWrapper.contains(event.target)) {
+                statusMenu.classList.add('hidden');
+            }
         });
 
         // ================= SINGLE DASHBOARD LOGIC =================
@@ -763,6 +902,10 @@
 
             renderSingleCharts(data);
             renderPriorityStatusChart(); // Render Multiple HTML ratio bars
+            
+            populateStatusDetailDropdown(); // โหลดตัวเลือก Status
+            updateStatusDetailView();       // อัปเดตข้อมูลเจาะลึก Status
+
             renderSingleTable(); // Call without args to use currentSingleData
         }
 
@@ -905,7 +1048,7 @@
                         <span class="text-sm text-indigo-300 font-bold whitespace-nowrap group-hover:text-white transition-colors leading-normal pb-0.5" title="รวมที่เลือก">รวมที่เลือก</span>
                         <span class="text-xs text-indigo-200 font-medium ml-auto shrink-0">(${totalSelectedCases})</span>
                     </div>
-                    <div class="flex-1 h-7 flex rounded-full bg-slate-800 shadow-inner ring-1 ring-slate-700/50">
+                    <div class="flex-1 h-7 flex rounded-full overflow-hidden bg-slate-800 shadow-inner ring-1 ring-slate-700/50">
             `;
 
             sortedOverallStatuses.forEach((status, index) => {
@@ -913,13 +1056,12 @@
                 const pct = (count / totalSelectedCases) * 100;
                 const statColor = colors.status[status] || colors.status['Default'];
                 
-                // Add border radius for first and last items visually
-                const isFirst = index === 0 ? 'rounded-l-full' : '';
-                const isLast = index === sortedOverallStatuses.length - 1 ? 'rounded-r-full border-r-0' : 'border-r border-slate-900/40';
+                // Add border radius logic fixed (clipped by parent overflow-hidden)
+                const isLast = index === sortedOverallStatuses.length - 1 ? 'border-r-0' : 'border-r border-slate-900/40';
 
                 overallBarHtml += `
                     <div style="width: ${pct}%; background-color: ${statColor}" 
-                         class="h-full transition-all duration-500 flex items-center justify-center cursor-default overflow-hidden ${isFirst} ${isLast}"
+                         class="h-full transition-all duration-500 flex items-center justify-center cursor-default overflow-hidden ${isLast}"
                          onmouseenter='showBarTooltip(event, "${status}", ${count}, "${pct.toFixed(1)}", "${statColor}", "รวม ")'
                          onmouseleave='hideBarTooltip()'
                          onmousemove='moveBarTooltip(event)'>
@@ -952,7 +1094,7 @@
                             <span class="text-sm text-slate-300 font-medium whitespace-nowrap group-hover:text-white transition-colors leading-normal pb-0.5" title="${prio}">${prio}</span>
                             <span class="text-xs text-slate-500 ml-auto shrink-0">(${data.total})</span>
                         </div>
-                        <div class="flex-1 h-5 flex rounded-full bg-slate-800 shadow-inner">
+                        <div class="flex-1 h-5 flex rounded-full overflow-hidden bg-slate-800 shadow-inner">
                 `;
 
                 // Sort status segments inside the bar (descending by count) to put wider segments first
@@ -963,12 +1105,11 @@
                     const pct = (count / data.total) * 100;
                     const statColor = colors.status[status] || colors.status['Default'];
                     
-                    const isFirst = index === 0 ? 'rounded-l-full' : '';
-                    const isLast = index === sortedStatuses.length - 1 ? 'rounded-r-full border-r-0' : 'border-r border-slate-900/40';
+                    const isLast = index === sortedStatuses.length - 1 ? 'border-r-0' : 'border-r border-slate-900/40';
 
                     barHtml += `
                         <div style="width: ${pct}%; background-color: ${statColor}" 
-                             class="h-full transition-all duration-500 flex items-center justify-center cursor-default overflow-hidden ${isFirst} ${isLast}"
+                             class="h-full transition-all duration-500 flex items-center justify-center cursor-default overflow-hidden ${isLast}"
                              onmouseenter='showBarTooltip(event, "${status}", ${count}, "${pct.toFixed(1)}", "${statColor}", "")'
                              onmouseleave='hideBarTooltip()'
                              onmousemove='moveBarTooltip(event)'>
@@ -995,6 +1136,199 @@
                     </div>
                 `;
             });
+        }
+
+        // ================= STATUS DEEP DIVE LOGIC =================
+        function toggleAllStatuses(checkbox) {
+            const checkboxes = document.querySelectorAll('.status-detail-checkbox');
+            checkboxes.forEach(cb => cb.checked = checkbox.checked);
+            updateStatusFilterTrigger();
+        }
+
+        function updateStatusFilterTrigger() {
+            updateStatusFilterLabel();
+            updateStatusDetailView();
+        }
+
+        function updateStatusFilterLabel() {
+            const checkboxes = document.querySelectorAll('.status-detail-checkbox');
+            const allCheckbox = document.getElementById('status-all');
+            const selected = Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.value);
+
+            if (allCheckbox) {
+                allCheckbox.checked = selected.length === checkboxes.length;
+            }
+
+            const label = document.getElementById('multiSelectStatusLabel');
+            if (label) {
+                if (selected.length === checkboxes.length) {
+                    label.textContent = 'All Statuses';
+                } else if (selected.length === 0) {
+                    label.textContent = 'None Selected';
+                } else if (selected.length === 1) {
+                    label.textContent = selected[0];
+                } else {
+                    label.textContent = `${selected.length} Selected`;
+                }
+            }
+        }
+
+        function populateStatusDetailDropdown() {
+            const statuses = [...new Set(currentSingleData.map(d => d['Execution Status'] || 'New'))].sort();
+            const container = document.getElementById('statusFilterOptionsContainer');
+            
+            let html = `
+                <label class="flex items-center gap-2 text-xs text-slate-300 hover:bg-slate-700 p-1.5 rounded cursor-pointer transition-colors">
+                    <input type="checkbox" value="All" id="status-all" class="accent-indigo-500 w-3.5 h-3.5 cursor-pointer" checked onchange="toggleAllStatuses(this)"> 
+                    <span class="font-medium text-white">Select All</span>
+                </label>
+                <hr class="border-slate-700 my-1">
+            `;
+
+            statuses.forEach(s => {
+                html += `
+                    <label class="flex items-center gap-2 text-xs text-slate-300 hover:bg-slate-700 p-1.5 rounded cursor-pointer transition-colors">
+                        <input type="checkbox" value="${s}" class="status-detail-checkbox accent-indigo-500 w-3.5 h-3.5 cursor-pointer" checked onchange="updateStatusFilterTrigger()"> ${s}
+                    </label>
+                `;
+            });
+            
+            container.innerHTML = html;
+            updateStatusFilterLabel();
+        }
+
+        function updateStatusDetailView() {
+            const checkboxes = document.querySelectorAll('.status-detail-checkbox');
+            if (checkboxes.length === 0) return; // ป้องกันการทำงานก่อน UI ถูกสร้าง
+            const selectedStatuses = Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.value);
+            
+            let filteredData = currentSingleData;
+            
+            if (selectedStatuses.length < checkboxes.length) {
+                filteredData = currentSingleData.filter(d => selectedStatuses.includes(d['Execution Status'] || 'New'));
+            }
+
+            const priorities = ['Critical', 'Urgent', 'High', 'Medium', 'Low', 'Not Specified'];
+            
+            // 1. Update Priority Summary Cards
+            const prioCounts = {};
+            priorities.forEach(p => prioCounts[p] = 0);
+            
+            filteredData.forEach(d => {
+                let p = d['Priority'] || 'Not Specified';
+                if (prioCounts[p] !== undefined) prioCounts[p]++;
+                else prioCounts['Not Specified']++; // Fallback
+            });
+
+            const cardsContainer = document.getElementById('statusPriorityCards');
+            cardsContainer.innerHTML = '';
+            priorities.forEach(p => {
+                const count = prioCounts[p];
+                const color = colors.priority[p] || colors.priority['Default'];
+                cardsContainer.innerHTML += `
+                    <div class="bg-slate-800/50 p-3 rounded-lg border border-slate-700/50 flex flex-col items-center justify-center text-center shadow-sm">
+                        <span class="text-[10px] text-slate-400 uppercase mb-1 flex items-center gap-1">
+                            <span class="w-2 h-2 rounded-full shadow-sm" style="background-color: ${color}"></span> ${p}
+                        </span>
+                        <span class="text-xl font-bold" style="color: ${count > 0 ? color : '#94a3b8'}">${count}</span>
+                    </div>
+                `;
+            });
+
+            // 2. Update Deep Dive Matrix Table (Module -> Scenario vs Priorities)
+            const moduleMap = {};
+            filteredData.forEach(row => {
+                const mod = row['Module / Feature'] || 'Unknown';
+                const scen = row['Test Scenario'] || 'Unknown';
+                const prio = row['Priority'] || 'Not Specified';
+                const pKey = priorities.includes(prio) ? prio : 'Not Specified';
+
+                if (!moduleMap[mod]) {
+                    moduleMap[mod] = { total: 0, scenarios: {}, priorities: {} };
+                    priorities.forEach(p => moduleMap[mod].priorities[p] = 0);
+                }
+                if (!moduleMap[mod].scenarios[scen]) {
+                    moduleMap[mod].scenarios[scen] = { total: 0, priorities: {} };
+                    priorities.forEach(p => moduleMap[mod].scenarios[scen].priorities[p] = 0);
+                }
+
+                moduleMap[mod].priorities[pKey]++;
+                moduleMap[mod].total++;
+                
+                moduleMap[mod].scenarios[scen].priorities[pKey]++;
+                moduleMap[mod].scenarios[scen].total++;
+            });
+
+            // Render Table Header
+            const thead = document.getElementById('statusDetailTableHeader');
+            let thHTML = `<tr><th class="px-4 py-3 font-semibold min-w-[200px]">Module / Feature <span class="text-slate-500 font-normal ml-1">(Click to expand)</span></th>`;
+            priorities.forEach(p => thHTML += `<th class="px-4 py-3 font-semibold text-center">${p}</th>`);
+            thHTML += `<th class="px-4 py-3 font-semibold text-center text-indigo-300">Total</th></tr>`;
+            thead.innerHTML = thHTML;
+
+            // Render Table Body
+            const tbody = document.getElementById('statusDetailTableBody');
+            let tbodyHtml = '';
+            const sortedModules = Object.keys(moduleMap).sort((a,b) => moduleMap[b].total - moduleMap[a].total);
+
+            if (sortedModules.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="${priorities.length + 2}" class="px-4 py-6 text-center text-slate-500">ไม่มีข้อมูลสำหรับ Status นี้</td></tr>`;
+                return;
+            }
+
+            sortedModules.forEach((mod, index) => {
+                const stats = moduleMap[mod];
+                const safeModId = 'det_mod_' + index; // ใช้ ID แยกกับตารางล่างป้องกันการชน
+
+                let trHTML = `<td class="px-4 py-2.5 text-slate-200 font-medium truncate max-w-[250px]">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-chevron-right text-slate-500 text-[10px] transition-transform duration-200 w-3 text-center shrink-0" id="icon-${safeModId}"></i>
+                        <span title="${mod}">${mod}</span>
+                    </div>
+                </td>`;
+
+                priorities.forEach(p => {
+                    const count = stats.priorities[p];
+                    const color = count > 0 ? (colors.priority[p] || '#fff') : '';
+                    const style = count > 0 ? `style="color: ${color}; font-weight: 600;"` : 'class="text-slate-600"';
+                    trHTML += `<td class="px-4 py-2.5 text-center" ${style}>${count > 0 ? count : '-'}</td>`;
+                });
+                trHTML += `<td class="px-4 py-2.5 text-center font-bold text-indigo-300">${stats.total}</td>`;
+
+                tbodyHtml += `<tr class="hover:bg-slate-700/30 cursor-pointer border-b border-slate-800/50 group select-none transition-colors" onclick="toggleScenarios('${safeModId}')">${trHTML}</tr>`;
+
+                // Render Scenarios (Hidden by default)
+                const sortedScen = Object.keys(stats.scenarios).sort((a,b) => stats.scenarios[b].total - stats.scenarios[a].total);
+                sortedScen.forEach(scen => {
+                    const scenStats = stats.scenarios[scen];
+                    let scenTrHTML = `<td class="px-4 py-2 text-slate-400 truncate max-w-[300px] text-xs pl-8" title="${scen}">
+                        <i class="fa-solid fa-level-up fa-rotate-90 mr-2 text-slate-600"></i>${scen}
+                    </td>`;
+
+                    priorities.forEach(p => {
+                        const count = scenStats.priorities[p];
+                        const color = count > 0 ? (colors.priority[p] || '#fff') : '';
+                        const style = count > 0 ? `style="color: ${color}; opacity: 0.9;"` : 'class="text-slate-600"';
+                        scenTrHTML += `<td class="px-4 py-2 text-center text-xs font-medium" ${style}>${count > 0 ? count : '-'}</td>`;
+                    });
+                    scenTrHTML += `<td class="px-4 py-2 text-center font-medium text-indigo-300/80 text-xs">${scenStats.total}</td>`;
+
+                    tbodyHtml += `<tr class="scenario-row-${safeModId} hidden bg-slate-900/40 hover:bg-slate-800/50 border-b border-slate-800/30 transition-colors">${scenTrHTML}</tr>`;
+                });
+            });
+
+            // Footer
+            let footerHTML = `<td class="px-4 py-3 font-bold text-slate-200 bg-slate-800 sticky bottom-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.5)]">Grand Total</td>`;
+            priorities.forEach(p => {
+                const total = sortedModules.reduce((sum, mod) => sum + moduleMap[mod].priorities[p], 0);
+                const color = total > 0 ? colors.priority[p] : '';
+                footerHTML += `<td class="px-4 py-3 text-center font-bold bg-slate-800 sticky bottom-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.5)]" style="${color ? 'color: ' + color : 'color: #94a3b8'}">${total}</td>`;
+            });
+            const grandTotal = sortedModules.reduce((sum, mod) => sum + moduleMap[mod].total, 0);
+            footerHTML += `<td class="px-4 py-3 text-center font-bold text-indigo-300 bg-slate-800 sticky bottom-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.5)]">${grandTotal}</td>`;
+            tbodyHtml += `<tr>${footerHTML}</tr>`;
+
+            tbody.innerHTML = tbodyHtml;
         }
 
         // ================= EXPANDABLE TABLE LOGIC =================
@@ -1170,31 +1504,33 @@
         }
 
         function onCompareFileChange() {
-            const fileA = document.getElementById('compareFileA');
-            const fileB = document.getElementById('compareFileB');
+            const fileA = document.getElementById('compareFileA').value;
+            const fileB = document.getElementById('compareFileB').value;
 
-            // Update sub-folder dropdown choices based on both files
-            if (fileA && fileB) {
-                const dataA = fileDataMap[fileA] || [];
-                const dataB = fileDataMap[fileB] || [];
-                
-                const dropdown = document.getElementById('filterSubfolderCompare');
-                const currentVal = dropdown.value;
-                
-                const setA = dataA.map(d => d['Sub-folder'] || 'Unknown');
-                const setB = dataB.map(d => d['Sub-folder'] || 'Unknown');
-                const subfolders = [...new Set([...setA, ...setB])].sort();
+            // Update sub-folder dropdown choices based on available files
+            const dropdown = document.getElementById('filterSubfolderCompare');
+            const currentVal = dropdown.value;
+            
+            let combinedSubfolders = new Set();
 
-                dropdown.innerHTML = '<option value="All">All</option>';
-                subfolders.forEach(sf => {
-                    dropdown.innerHTML += `<option value="${sf}">${sf}</option>`;
-                });
+            if (fileA && fileDataMap[fileA]) {
+                fileDataMap[fileA].forEach(d => combinedSubfolders.add(d['Sub-folder'] || 'Unknown'));
+            }
+            if (fileB && fileDataMap[fileB]) {
+                fileDataMap[fileB].forEach(d => combinedSubfolders.add(d['Sub-folder'] || 'Unknown'));
+            }
 
-                if (subfolders.includes(currentVal) || currentVal === 'All') {
-                    dropdown.value = currentVal;
-                } else {
-                    dropdown.value = 'All';
-                }
+            const subfolders = Array.from(combinedSubfolders).sort();
+            
+            dropdown.innerHTML = '<option value="All">All</option>';
+            subfolders.forEach(sf => {
+                dropdown.innerHTML += `<option value="${sf}">${sf}</option>`;
+            });
+
+            if (subfolders.includes(currentVal) || currentVal === 'All') {
+                dropdown.value = currentVal;
+            } else {
+                dropdown.value = 'All';
             }
 
             runComparison();
@@ -1255,10 +1591,10 @@
             });
 
             // Update UI Deltas
-            setDeltaUI('cmpTotal', stB.t, stB.t - stA.t);
-            setDeltaUI('cmpPassed', stB.p, stB.p - stA.p, true);
-            setDeltaUI('cmpFailed', stB.f, stB.f - stA.f, false);
-            setDeltaUI('cmpNew', stB.n, stB.n - stA.n, false);
+            setDeltaUI('Total', stA.t, stB.t, stA.t, stB.t, true, true);
+            setDeltaUI('Passed', stA.p, stB.p, stA.t, stB.t, true, false);
+            setDeltaUI('Failed', stA.f, stB.f, stA.t, stB.t, false, false);
+            setDeltaUI('New', stA.n, stB.n, stA.t, stB.t, false, false);
             
             // Generate breakdown HTML for New/Pending in Compare view
             let cmpBreakdown = '';
@@ -1276,9 +1612,9 @@
             const chartDataA = chartLabels.map(l => statusCountsA[l] || 0);
             const chartDataB = chartLabels.map(l => statusCountsB[l] || 0);
 
-            // 2. Extract Data for New Charts (Severity & Module Progress)
-            const failSevA = { 'High': 0, 'Medium': 0, 'Low': 0, 'No Data': 0 };
-            const failSevB = { 'High': 0, 'Medium': 0, 'Low': 0, 'No Data': 0 };
+            // 2. Extract Data for New Charts (Priority & Module Progress)
+            const failPrioA = { 'Critical': 0, 'Urgent': 0, 'High': 0, 'Medium': 0, 'Low': 0, 'Not Specified': 0 };
+            const failPrioB = { 'Critical': 0, 'Urgent': 0, 'High': 0, 'Medium': 0, 'Low': 0, 'Not Specified': 0 };
             
             const modPassA = {};
             const modPassB = {};
@@ -1286,41 +1622,120 @@
 
             dataA.forEach(d => {
                 let s = d['Execution Status'] || 'New';
-                let sev = d['Severity'] || 'No Data';
+                let prio = d['Priority'] || 'Not Specified';
                 let mod = d['Module / Feature'] || 'Unknown';
                 
-                if (s === 'Failed') { failSevA[sev] = (failSevA[sev] || 0) + 1; }
+                if (s === 'Failed') { failPrioA[prio] = (failPrioA[prio] || 0) + 1; }
                 if (s === 'Passed') { modPassA[mod] = (modPassA[mod] || 0) + 1; allModules.add(mod); }
             });
 
             dataB.forEach(d => {
                 let s = d['Execution Status'] || 'New';
-                let sev = d['Severity'] || 'No Data';
+                let prio = d['Priority'] || 'Not Specified';
                 let mod = d['Module / Feature'] || 'Unknown';
                 
-                if (s === 'Failed') { failSevB[sev] = (failSevB[sev] || 0) + 1; }
+                if (s === 'Failed') { failPrioB[prio] = (failPrioB[prio] || 0) + 1; }
                 if (s === 'Passed') { modPassB[mod] = (modPassB[mod] || 0) + 1; allModules.add(mod); }
             });
 
-            renderCompareCharts(chartLabels, chartDataA, chartDataB, failSevA, failSevB, modPassA, modPassB, allModules);
+            renderCompareCharts(chartLabels, chartDataA, chartDataB, failPrioA, failPrioB, modPassA, modPassB, allModules);
         }
 
-        function setDeltaUI(id, currentVal, delta, higherIsBetter = true) {
-            document.getElementById(id).innerHTML = currentVal;
-            const diffEl = document.getElementById(id + 'Diff');
+        function setDeltaUI(id, valBase, valTarget, totalBase, totalTarget, higherIsBetter = true, isTotal = false) {
+            const delta = valTarget - valBase;
             
-            if (delta === 0) {
-                diffEl.textContent = 'No Change'; diffEl.className = 'text-xs font-medium px-2 py-0.5 rounded bg-slate-700 text-slate-300';
-            } else if (delta > 0) {
-                diffEl.textContent = `+${delta}`;
-                diffEl.className = `text-xs font-bold px-2 py-0.5 rounded ${higherIsBetter ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}`;
-            } else {
-                diffEl.textContent = `${delta}`;
-                diffEl.className = `text-xs font-bold px-2 py-0.5 rounded ${higherIsBetter ? 'bg-rose-500/20 text-rose-400' : 'bg-emerald-500/20 text-emerald-400'}`;
+            // 1. Set Main Number
+            const numEl = document.getElementById('cmp' + id);
+            if (numEl) numEl.innerHTML = valTarget;
+            
+            // 2. Set Main Pct (if not total)
+            if (!isTotal && id !== 'New') {
+                const pctTarget = totalTarget > 0 ? ((valTarget / totalTarget) * 100).toFixed(1) : 0;
+                const pctEl = document.getElementById('cmp' + id + 'Pct');
+                if (pctEl) pctEl.textContent = `(${pctTarget}%)`;
             }
+
+            // 3. Set Diff Badge
+            const diffEl = document.getElementById('cmp' + id + 'Diff');
+            if (diffEl) {
+                let pctChangeText = '';
+                if (valBase > 0 && delta !== 0) {
+                    const pctChange = (Math.abs(delta) / valBase) * 100;
+                    pctChangeText = ` (${delta > 0 ? '+' : '-'}${pctChange.toFixed(1)}%)`;
+                } else if (valBase === 0 && delta > 0) {
+                    pctChangeText = ` (+100%)`;
+                }
+                
+                if (delta === 0) {
+                    diffEl.textContent = 'No Change'; 
+                    diffEl.className = 'text-[10px] font-medium px-1.5 py-0.5 rounded bg-slate-700 text-slate-300 whitespace-nowrap';
+                } else if (delta > 0) {
+                    diffEl.textContent = `+${delta}${pctChangeText}`;
+                    diffEl.className = `text-[10px] font-bold px-1.5 py-0.5 rounded whitespace-nowrap ${higherIsBetter ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}`;
+                } else {
+                    diffEl.textContent = `${delta}${pctChangeText}`;
+                    diffEl.className = `text-[10px] font-bold px-1.5 py-0.5 rounded whitespace-nowrap ${higherIsBetter ? 'bg-rose-500/20 text-rose-400' : 'bg-emerald-500/20 text-emerald-400'}`;
+                }
+            }
+
+            // 4. Set Base -> Target Banner
+            const basePct = totalBase > 0 ? ((valBase / totalBase) * 100).toFixed(1) : 0;
+            const targetPct = totalTarget > 0 ? ((valTarget / totalTarget) * 100).toFixed(1) : 0;
+            
+            const baseStr = isTotal ? `${valBase}` : `${valBase} (${basePct}%)`;
+            const targetStr = isTotal ? `${valTarget}` : `${valTarget} (${targetPct}%)`;
+            
+            const baseEl = document.getElementById('cmp' + id + 'Base');
+            if (baseEl) baseEl.textContent = baseStr;
+            
+            const targetEl = document.getElementById('cmp' + id + 'Target');
+            if (targetEl) targetEl.textContent = targetStr;
         }
 
-        function renderCompareCharts(statusLabels, statusA, statusB, failSevA, failSevB, modPassA, modPassB, allModules) {
+        function renderCompareCharts(statusLabels, statusA, statusB, failPrioA, failPrioB, modPassA, modPassB, allModules) {
+            // Reusable Tooltip for Delta
+            const deltaTooltip = {
+                callbacks: {
+                    label: function(context) {
+                        let label = context.dataset.label || '';
+                        if (label) { label += ': '; }
+                        if (context.parsed.y !== null) { label += context.parsed.y; }
+                        
+                        if (context.datasetIndex === 1) {
+                            const baseVal = context.chart.data.datasets[0].data[context.dataIndex] || 0;
+                            const targetVal = context.parsed.y;
+                            const diff = targetVal - baseVal;
+                            if (diff > 0) label += ` (+${diff} จาก Baseline)`;
+                            else if (diff < 0) label += ` (${diff} จาก Baseline)`;
+                            else label += ` (ไม่เปลี่ยนแปลง)`;
+                        }
+                        return label;
+                    }
+                }
+            };
+
+            // สร้างออปชันแชร์รวมสำหรับทุกกราฟในหน้า Compare เพื่อแก้ปัญหากราฟทับตัวหนังสือ
+            const compareChartOptions = {
+                responsive: true, 
+                maintainAspectRatio: false,
+                layout: {
+                    padding: { top: 25 } // เพิ่มพื้นที่ว่างด้านบน 25px ไม่ให้ข้อความ Delta ชนขอบ
+                },
+                plugins: { 
+                    legend: { position: 'top', labels: { usePointStyle: true, boxWidth: 8 } }, 
+                    tooltip: deltaTooltip 
+                }, 
+                scales: { 
+                    y: { 
+                        grace: '15%', // สั่งให้แกน Y เผื่อพื้นที่ด้านบนสุดของแท่งที่สูงที่สุดไว้อีก 15% เสมอ
+                        grid: { borderDash: [4,4], color: 'rgba(51, 65, 85, 0.5)' } 
+                    }, 
+                    x: { 
+                        grid: { display: false } 
+                    } 
+                } 
+            };
+
             // 1. General Status Bar Chart
             if(compareBarChart) compareBarChart.destroy();
             compareBarChart = new Chart(document.getElementById('compareBarChart').getContext('2d'), {
@@ -1332,25 +1747,27 @@
                         { label: 'Target', data: statusB, backgroundColor: statusLabels.map(l => colors.status[l] || colors.status['Default']), borderRadius: 4 }
                     ]
                 },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { usePointStyle: true, boxWidth: 8 } } }, scales: { y: { grid: { borderDash: [4,4], color: 'rgba(51, 65, 85, 0.5)' } }, x: { grid: { display: false } } } }
+                options: compareChartOptions,
+                plugins: [deltaLabelsPlugin]
             });
 
-            // 2. Failed Cases by Severity
-            if(compareSeverityChart) compareSeverityChart.destroy();
-            const sevLabels = ['High', 'Medium', 'Low', 'No Data'];
-            const sevDataA = sevLabels.map(l => failSevA[l] || 0);
-            const sevDataB = sevLabels.map(l => failSevB[l] || 0);
+            // 2. Failed Cases by Priority
+            if(comparePriorityChart) comparePriorityChart.destroy();
+            const prioLabels = ['Critical', 'Urgent', 'High', 'Medium', 'Low', 'Not Specified'];
+            const prioDataA = prioLabels.map(l => failPrioA[l] || 0);
+            const prioDataB = prioLabels.map(l => failPrioB[l] || 0);
 
-            compareSeverityChart = new Chart(document.getElementById('compareSeverityChart').getContext('2d'), {
+            comparePriorityChart = new Chart(document.getElementById('comparePriorityChart').getContext('2d'), {
                 type: 'bar',
                 data: {
-                    labels: sevLabels,
+                    labels: prioLabels,
                     datasets: [
-                        { label: 'Baseline (Failed)', data: sevDataA, backgroundColor: '#64748b', borderRadius: 4 },
-                        { label: 'Target (Failed)', data: sevDataB, backgroundColor: sevLabels.map(l => colors.severity[l] || colors.severity['Default']), borderRadius: 4 }
+                        { label: 'Baseline (Failed)', data: prioDataA, backgroundColor: '#64748b', borderRadius: 4 },
+                        { label: 'Target (Failed)', data: prioDataB, backgroundColor: prioLabels.map(l => colors.priority[l] || colors.priority['Default']), borderRadius: 4 }
                     ]
                 },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { usePointStyle: true, boxWidth: 8 } } }, scales: { y: { grid: { borderDash: [4,4], color: 'rgba(51, 65, 85, 0.5)' } }, x: { grid: { display: false } } } }
+                options: compareChartOptions,
+                plugins: [deltaLabelsPlugin]
             });
 
             // 3. Passed Cases Progress by Module (Top 10)
@@ -1372,11 +1789,8 @@
                         { label: 'Target (Passed)', data: modDataB, backgroundColor: '#10b981', borderRadius: 4 } // emerald-500
                     ]
                 },
-                options: { 
-                    responsive: true, maintainAspectRatio: false, 
-                    plugins: { legend: { position: 'top', labels: { usePointStyle: true, boxWidth: 8 } } }, 
-                    scales: { y: { grid: { borderDash: [4,4], color: 'rgba(51, 65, 85, 0.5)' } }, x: { grid: { display: false } } } 
-                }
+                options: compareChartOptions,
+                plugins: [deltaLabelsPlugin]
             });
         }
     </script>
